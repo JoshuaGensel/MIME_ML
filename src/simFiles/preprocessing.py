@@ -18,7 +18,7 @@ def preprocessSimData(path : str, maxSplits : int, readSize: int, seed = 1) -> n
         seed (int, optional): numpy seed. important for reproducability of random fragmentation. Defaults to 1.
 
     Returns:
-        np.array: _description_
+        np.array: 2d numpy array of fragmented sequence alignment.
     """
     
     
