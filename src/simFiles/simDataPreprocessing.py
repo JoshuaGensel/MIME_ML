@@ -1,6 +1,6 @@
 import numpy as np
 
-def preprocessSimData(path : str, maxSplits : int, readSize: int, seed = 1) -> np.array:
+def convertToMatrix(path : str, splitProb : float, readSize: int, protConc: float, seed = 1) -> np.array:
     
     """
     This function loads a sequence output of the dmMIMESim simulator, preprocesses it and returns it as a 2d numpy array. It parces the sequences to an 
@@ -48,10 +48,11 @@ def preprocessSimData(path : str, maxSplits : int, readSize: int, seed = 1) -> n
     #convert all sequences to one-hot encoding
     binarySequence = np.array([seq_to_bin(seq) for seq in sequenceList])
     
-    #function that splits a sequence at up to 3 random points into fragments
+    #function that splits a sequence at binomial random points into fragments
     def splitSequence(seq: str) -> list:
         #split sequence at random points
-        splitPoints = np.random.randint(1, len(seq), np.random.randint(1, maxSplits+1))
+        nSplits = np.random.binomial(seqLength, splitProb)
+        splitPoints = np.random.randint(1, len(seq), nSplits)
         splitPoints = np.sort(splitPoints)
         splitPoints = np.insert(splitPoints, 0, 0)
         splitPoints = np.append(splitPoints, len(seq))
@@ -95,8 +96,9 @@ def preprocessSimData(path : str, maxSplits : int, readSize: int, seed = 1) -> n
     alignedFragmentsList = [alignFragments(fragments, seqLength) for fragments in readFragmentsList]
     
     #create matrix of all aligned fragments
-    alignedFragmentsMatrix = np.stack([item for sublist in alignedFragmentsList for item in sublist], axis = 0).astype(int)
+    alignedFragmentsMatrix = np.stack([item for sublist in alignedFragmentsList for item in sublist], axis = 0)
     
+    #add protein concentration to each row
+    alignedFragmentsMatrix = np.insert(alignedFragmentsMatrix, 0, protConc, axis = 1)
         
     return alignedFragmentsMatrix
-        
