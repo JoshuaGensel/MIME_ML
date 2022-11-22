@@ -1,6 +1,8 @@
 import numpy as np
+from numba import jit
 
-def convertToMatrix(path : str, splitProb : float, readSize: int, protConc: float, seed = 1) -> np.array:
+@jit(parallel=True, forceobj=True)
+def convertToMatrix(path : str, maxNumSequences : int, splitProb : float, readSize: int, protConc: float, seed = 1) -> np.array:
     
     """
     This function loads a sequence output of the dmMIMESim simulator, preprocesses it and returns it as a 2d numpy array. It parces the sequences to an 
@@ -12,6 +14,7 @@ def convertToMatrix(path : str, splitProb : float, readSize: int, protConc: floa
     cover are set to zero as well. Finally the resulting read alignment is returned as a 2d numpy array with dtype = int.
     
     Args:
+        maxNumSequences (int): The maximum number of sequences to be loaded. If the number of sequences in the file is smaller, all sequences are loaded.
         path (str): path to the .txt-file of the sequence output from dmMIMESim.
         maxSplits (int): maximum number of random splitting points.
         readSize (int): maximum read length of the sequencing machine (for Illumina deep sequencing = 100).
@@ -25,28 +28,16 @@ def convertToMatrix(path : str, splitProb : float, readSize: int, protConc: floa
     
     #set seed
     np.random.seed(seed)
-    
-    #read in sequences
-    with open(path, 'r') as f:
-        sequenceList = []
-        for line in f:
-            sequenceList.append(line.strip())
+     
+    #read in random subset of sequences
+    sequenceArray = np.genfromtxt(path, dtype = str, max_rows = maxNumSequences, delimiter=1)
             
     #define sequence length as constant
-    seqLength = len(sequenceList[0])
+    seqLength = len(sequenceArray[0])
 
-    #fucntion that converts a sequence to a one-hot encoding
-    def seq_to_bin(sequence):
-        one_hot = []
-        for i in range(len(sequence)):
-            if sequence[i] == 'A':
-                one_hot.append(-1)
-            elif sequence[i] == 'C':
-                one_hot.append(1)
-        return one_hot
+    #convert to binary encoding
+    sequenceArray = np.where(sequenceArray == 'C', 1, -1).astype(int)
     
-    #convert all sequences to one-hot encoding
-    binarySequence = np.array([seq_to_bin(seq) for seq in sequenceList])
     
     #function that splits a sequence at binomial random points into fragments
     def splitSequence(seq: str) -> list:
@@ -61,7 +52,7 @@ def convertToMatrix(path : str, splitProb : float, readSize: int, protConc: floa
         return fragments
 
     #split all sequences into fragments
-    fragmentList = [splitSequence(seq) for seq in binarySequence]
+    fragmentList = [splitSequence(seq) for seq in sequenceArray]
     
     #function that takes fragments and replaces values that are out of read range with 0
     def replaceOutRange(fragments: list, readRange: int) -> list:
@@ -99,6 +90,6 @@ def convertToMatrix(path : str, splitProb : float, readSize: int, protConc: floa
     alignedFragmentsMatrix = np.stack([item for sublist in alignedFragmentsList for item in sublist], axis = 0)
     
     #add protein concentration to each row
-    alignedFragmentsMatrix = np.insert(alignedFragmentsMatrix, 0, protConc, axis = 1)
+    alignedFragmentsMatrix = np.insert(alignedFragmentsMatrix, 0, protConc, axis = 1).astype(int)
         
     return alignedFragmentsMatrix
