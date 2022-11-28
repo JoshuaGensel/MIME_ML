@@ -2,7 +2,7 @@ import numpy as np
 from numba import jit
 
 @jit(parallel=True, forceobj=True)
-def convertToMatrix(path : str, maxNumSequences : int, splitProb : float, readSize: int, protConc: float, seed = 1) -> np.array:
+def convertToMatrix(path : str, maxNumSequences : int, splitProb : float, readSize: int, protConc: int, protConc2 = None, seed = 1) -> np.array:
     
     """
     This function loads a sequence output of the dmMIMESim simulator, preprocesses it and returns it as a 2d numpy array. It parces the sequences to an 
@@ -18,6 +18,8 @@ def convertToMatrix(path : str, maxNumSequences : int, splitProb : float, readSi
         path (str): path to the .txt-file of the sequence output from dmMIMESim.
         maxSplits (int): maximum number of random splitting points.
         readSize (int): maximum read length of the sequencing machine (for Illumina deep sequencing = 100).
+        protConc (int): protein concentration in the experiment.
+        protConc2 (int): protein concentration in the second round experiment. If None/default it is not added to the array.
         seed (int, optional): numpy seed. important for reproducability of random fragmentation. Defaults to 1.
 
     Returns:
@@ -88,6 +90,10 @@ def convertToMatrix(path : str, maxNumSequences : int, splitProb : float, readSi
     
     #create matrix of all aligned fragments
     alignedFragmentsMatrix = np.stack([item for sublist in alignedFragmentsList for item in sublist], axis = 0)
+    
+    #if protConc2 is not None add it to the array
+    if protConc2 != None:
+        alignedFragmentsMatrix = np.insert(alignedFragmentsMatrix, 0, protConc2, axis = 1)
     
     #add protein concentration to each row
     alignedFragmentsMatrix = np.insert(alignedFragmentsMatrix, 0, protConc, axis = 1).astype(int)
