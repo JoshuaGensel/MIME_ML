@@ -89,9 +89,9 @@ def convertToMatrix(path : str, maxNumSequences : int, splittingProbability : fl
     cover are set to zero as well. Finally the resulting read alignment is returned as a 2d numpy array with dtype = int.
     
     Args:
-        maxNumSequences (int): The maximum number of sequences to be loaded. If the number of sequences in the file is smaller, all sequences are loaded.
         path (str): path to the .txt-file of the sequence output from dmMIMESim.
-        maxSplits (int): maximum number of random splitting points.
+        maxNumSequences (int): The maximum number of sequences to be loaded. If the number of sequences in the file is smaller, all sequences are loaded.
+        splittingProbability (float): The probability per nucleotide to pslit the sequence there into fragments.
         readSize (int): maximum read length of the sequencing machine (for Illumina deep sequencing = 100).
         proteinConcentration (int): protein concentration in the experiment.
         proteinConcentration2 (int): protein concentration in the second round experiment. If None/default it is not added to the array.
@@ -138,6 +138,30 @@ def convertToMatrix(path : str, maxNumSequences : int, splittingProbability : fl
 
 @jit(parallel=True, forceobj=True)
 def convertToInteractionMatrix(path : str, maxNumSequences : int, splittingProbability : float, readSize: int, proteinConcentration: int, proteinConcentration2 = None, seed = 1) -> np.array:
+    """
+    This function loads a sequence output of the dmMIMESim simulator, preprocesses it and returns it as a 2d numpy array. It parces the sequences to an 
+    alignment of reads to emulate the output of the experimenal MIME procedure. It also adds all pairwise interaction terms between the residues to the 
+    array.
+    
+    Firstly it converts the sequences to a binary encoding where '1 = mutated', '-1 = wildtype'. Then it cuts the sequences into fragments at random 
+    points, but not more then 'maxSplits'. The parts of the fragments that would not be read because of the limited read length ('readSize') get 
+    replaced by zeros (Therefore '0 = missing'). The fragments get aligned onto the original sequence, where every residue that the fragments do not 
+    cover are set to zero as well. Then for all residues the pairwise interaction terms are added to the array. Finally the resulting read alignment is 
+    returned as a 2d numpy array with dtype = int.
+    
+    Args:
+        path (str): path to the .txt-file of the sequence output from dmMIMESim.
+        maxNumSequences (int): The maximum number of sequences to be loaded. If the number of sequences in the file is smaller, all sequences are loaded.
+        splittingProbability (float): The probability per nucleotide to pslit the sequence there into fragments.
+        readSize (int): maximum read length of the sequencing machine (for Illumina deep sequencing = 100).
+        proteinConcentration (int): protein concentration in the experiment.
+        proteinConcentration2 (int): protein concentration in the second round experiment. If None/default it is not added to the array.
+        seed (int, optional): numpy seed. important for reproducability of random fragmentation. Defaults to 1.
+
+    Returns:
+        np.array: 2d numpy array of fragmented sequence alignment with all pairwise interaction terms.
+    """
+    
     #set seed
     np.random.seed(seed)
      
@@ -177,6 +201,29 @@ def convertToInteractionMatrix(path : str, maxNumSequences : int, splittingProba
     
 @jit(parallel=True, forceobj=True)
 def convertToOneHotMatrix(path : str, maxNumSequences : int, splittingProbability : float, readSize: int, proteinConcentration: int, proteinConcentration2 = None, seed = 1) -> np.array:
+    """
+    This function loads a sequence output of the dmMIMESim simulator, preprocesses it and returns it as a 2d numpy array. It parces the sequences to an 
+    alignment of reads to emulate the output of the experimenal MIME procedure. It encodes all residues with a one hot encoding.
+    
+    Firstly it converts the sequences to a binary encoding where '1 = mutated', '-1 = wildtype'. Then it cuts the sequences into fragments at random 
+    points, but not more then 'maxSplits'. The parts of the fragments that would not be read because of the limited read length ('readSize') get 
+    replaced by zeros (Therefore '0 = missing'). The fragments get aligned onto the original sequence, where every residue that the fragments do not 
+    cover are set to zero as well. Then for all residues the pairwise interaction terms are added to the array. Finally the resulting read alignment is 
+    returned as a 2d numpy array with dtype = int.
+    
+    Args:
+        path (str): path to the .txt-file of the sequence output from dmMIMESim.
+        maxNumSequences (int): The maximum number of sequences to be loaded. If the number of sequences in the file is smaller, all sequences are loaded.
+        splittingProbability (float): The probability per nucleotide to pslit the sequence there into fragments.
+        readSize (int): maximum read length of the sequencing machine (for Illumina deep sequencing = 100).
+        proteinConcentration (int): protein concentration in the experiment.
+        proteinConcentration2 (int): protein concentration in the second round experiment. If None/default it is not added to the array.
+        seed (int, optional): numpy seed. important for reproducability of random fragmentation. Defaults to 1.
+
+    Returns:
+        np.array: 2d numpy array of fragmented sequence alignment with all pairwise interaction terms.
+    """
+    
     #set seed
     np.random.seed(seed)
     
