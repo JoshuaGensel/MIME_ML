@@ -251,7 +251,7 @@ def convertToOneHotMatrix(path : str, maxNumSequences : int, splittingProbabilit
     #transform to one hot encoding
     oneHotMatrix = np.where(alignedFragmentsMatrix == '0.0' , '0,0,0,0', alignedFragmentsMatrix)
     oneHotMatrix = np.where(oneHotMatrix == '0' , '0,0,0,0', oneHotMatrix)
-    oneHotMatrix = np.where(oneHotMatrix == 'U' , '0,0,0,1', oneHotMatrix)
+    oneHotMatrix = np.where(oneHotMatrix == 'T' , '0,0,0,1', oneHotMatrix)
     oneHotMatrix = np.where(oneHotMatrix == 'G' , '0,0,1,0', oneHotMatrix)
     oneHotMatrix = np.where(oneHotMatrix == 'C' , '0,1,0,0', oneHotMatrix)
     oneHotMatrix = np.where(oneHotMatrix == 'A' , '1,0,0,0', oneHotMatrix)
@@ -275,3 +275,110 @@ def convertToOneHotMatrix(path : str, maxNumSequences : int, splittingProbabilit
     
     
     return oneHotMatrix
+
+def loadSimDataOneHot(path : str, maxNumSequences : int, splittingProbability : float, readSize: int):
+    """
+    This function loads the simulated data from the dmMIMESim simulator and returns training data and label data as numpy arrays. 
+    It loads the data from all rounds from the directory used as output directory by the simAutomation.py script. The data gets
+    parsed with convertToOneHotMatrix() and then split into training and label data. The training data is the one hot encoded
+    array of aligned fragmented sequences. The label data is 1 if the sequence is bound and 0 if it is not bound. The data is
+    not yet split or shuffled.
+
+    Args:
+        path (str): path to the directory where the simulated data is stored. Same as the output directory used by the simAutomation.py script.
+        maxNumSequences (int): maximum number of sequences to be loaded from each round.
+        splittingProbability (float): The probability per nucleotide to pslit the sequence there into fragments.
+        readSize (int): maximum read length of the sequencing machine (for Illumina deep sequencing = 100).
+        seed (int, optional): numpy seed. important for reproducability of random fragmentation. Defaults to 1.
+
+    Returns:
+        np.array, np.array: training data, label data
+    """
+    
+    bound_1_1 = convertToOneHotMatrix(path+'/secondFromProt1/prot1/sequences/7.txt',
+                            maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=1, seed=2536)
+    bound_1_6 = convertToOneHotMatrix(path+'/secondFromProt1/prot6/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=6, seed=5675)
+    bound_1_15 = convertToOneHotMatrix(path+'/secondFromProt1/prot15/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=15, seed=3456)
+    bound_1_30 = convertToOneHotMatrix(path+'/secondFromProt1/prot30/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=30, seed=972358)
+
+    unbound_1_1 = convertToOneHotMatrix(path+'/secondFromProt1/prot1/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=1, seed=867532)
+    unbound_1_6 = convertToOneHotMatrix(path+'/secondFromProt1/prot6/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=6, seed=10357)
+    unbound_1_15 = convertToOneHotMatrix(path+'/secondFromProt1/prot15/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=15, seed=67238)
+    unbound_1_30 = convertToOneHotMatrix(path+'/secondFromProt1/prot30/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=1, proteinConcentration2=30, seed=564123)
+    print('first round prot1 done')
+    bound_6_1 = convertToOneHotMatrix(path+'/secondFromProt6/prot1/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=1, seed=4527)
+    bound_6_6 = convertToOneHotMatrix(path+'/secondFromProt6/prot6/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=6, seed=24577)
+    bound_6_15 = convertToOneHotMatrix(path+'/secondFromProt6/prot15/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=15, seed=23456)
+    bound_6_30 = convertToOneHotMatrix(path+'/secondFromProt6/prot30/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=30, seed=75948)
+
+    unbound_6_1 = convertToOneHotMatrix(path+'/secondFromProt6/prot1/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=1, seed=2456)
+    unbound_6_6 = convertToOneHotMatrix(path+'/secondFromProt6/prot6/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=6, seed=45678)
+    unbound_6_15 = convertToOneHotMatrix(path+'/secondFromProt6/prot15/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=15, seed=3415)
+    unbound_6_30 = convertToOneHotMatrix(path+'/secondFromProt6/prot30/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=6, proteinConcentration2=30, seed=7469)
+    print('first round prot6 done')
+    bound_15_1 = convertToOneHotMatrix(path+'/secondFromProt15/prot1/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=1, seed=13465)
+    bound_15_6 = convertToOneHotMatrix(path+'/secondFromProt15/prot6/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=6, seed=3658)
+    bound_15_15 = convertToOneHotMatrix(path+'/secondFromProt15/prot15/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=15, seed=13456)
+    bound_15_30 = convertToOneHotMatrix(path+'/secondFromProt15/prot30/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=30, seed=2457)
+
+    unbound_15_1 = convertToOneHotMatrix(path+'/secondFromProt15/prot1/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=1, seed=83656)
+    unbound_15_6 = convertToOneHotMatrix(path+'/secondFromProt15/prot6/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=6, seed=2574)
+    unbound_15_15 = convertToOneHotMatrix(path+'/secondFromProt15/prot15/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=15, seed=4679)
+    unbound_15_30 = convertToOneHotMatrix(path+'/secondFromProt15/prot30/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=15, proteinConcentration2=30, seed=1345)
+    print('first round prot15 done')
+    bound_30_1 = convertToOneHotMatrix(path+'/secondFromProt30/prot1/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=1, seed=3567)
+    bound_30_6 = convertToOneHotMatrix(path+'/secondFromProt30/prot6/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=6, seed=565674275)
+    bound_30_15 = convertToOneHotMatrix(path+'/secondFromProt30/prot15/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=15, seed=2457)
+    bound_30_30 = convertToOneHotMatrix(path+'/secondFromProt30/prot30/sequences/7.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=30, seed=25478)
+
+    unbound_30_1 = convertToOneHotMatrix(path+'/secondFromProt30/prot1/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=1, seed=6583)
+    unbound_30_6 = convertToOneHotMatrix(path+'/secondFromProt30/prot6/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=6, seed=4136)
+    unbound_30_15 = convertToOneHotMatrix(path+'/secondFromProt30/prot15/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=15, seed=4356)
+    unbound_30_30 = convertToOneHotMatrix(path+'/secondFromProt30/prot30/sequences/8.txt',
+                                maxNumSequences=maxNumSequences, splittingProbability=splittingProbability, readSize=readSize, proteinConcentration=30, proteinConcentration2=30, seed=564123)
+    print('first round prot 30 done')
+    
+    #combine all bound and unbound data into one array
+    bound = np.concatenate((bound_1_1, bound_1_6, bound_1_15, bound_1_30, bound_6_1, bound_6_6, bound_6_15, bound_6_30, bound_15_1, bound_15_6, bound_15_15, bound_15_30, bound_30_1, bound_30_6, bound_30_15, bound_30_30), axis=0)
+    unbound = np.concatenate((unbound_1_1, unbound_1_6, unbound_1_15, unbound_1_30, unbound_6_1, unbound_6_6, unbound_6_15, unbound_6_30, unbound_15_1, unbound_15_6, unbound_15_15, unbound_15_30, unbound_30_1, unbound_30_6, unbound_30_15, unbound_30_30), axis=0)
+
+    #create labels for bound and unbound data
+    bound_labels = np.ones((bound.shape[0],1))
+    unbound_labels = np.zeros((unbound.shape[0],1))
+
+    #combine bound and unbound data and labels into one array
+    data = np.concatenate((bound, unbound), axis=0)
+    labels = np.concatenate((bound_labels, unbound_labels), axis=0)
+    
+    return data, labels
+    

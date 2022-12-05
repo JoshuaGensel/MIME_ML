@@ -3,14 +3,15 @@ import os
 from random import *
 
 pathToSim = "~/programming_projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "/mnt/d/data/MIME_data/simData/test"
+workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/midError"
 
 #parameters
 L = 100
 q = 4
 M = 100000
-p_mut = 0.005
-p_error = 0.001
+p_mut = 0.0225
+p_error = 0.01125
+p_epistasis = 0.3
 proteinConcentrations = [1, 6, 15, 30]
 
 #create output directories
@@ -34,6 +35,7 @@ for proteinConcentration in proteinConcentrations:
         f.write("p_error\t" + str(p_error) + "\n")
         f.write("B_tot\t" + str(proteinConcentration) + "\n")
         f.write("seed\t" + str(randint(0, 999999)) + "\n")
+        f.write("p_epistasis\t" + str(p_epistasis) + "\n")
     
     #create second round directories
     secondDir = workingDirectory + "/secondFromProt" + str(proteinConcentration)
@@ -55,6 +57,7 @@ for proteinConcentration in proteinConcentrations:
             f.write("p_error\t" + str(p_error) + "\n")
             f.write("B_tot\t" + str(proteinConcentration2) + "\n")
             f.write("seed\t" + str(randint(0, 999999)) + "\n")
+            f.write("p_epistasis\t" + str(p_epistasis) + "\n")
 
 #run first simulation
 command = pathToSim + " --working-dir " + firstRoundDirectories[0]
