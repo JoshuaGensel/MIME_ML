@@ -3,15 +3,17 @@ import os
 from random import *
 
 pathToSim = "~/programming_projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/midError"
+workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/fullEpistasis"
 
 #parameters
 L = 100
 q = 4
 M = 100000
 p_mut = 0.0225
-p_error = 0.01125
-p_epistasis = 0.3
+p_error = 0.0045
+p_effect = 1
+p_epistasis = 1
+epi_restrict = 0
 proteinConcentrations = [1, 6, 15, 30]
 
 #create output directories
@@ -36,6 +38,8 @@ for proteinConcentration in proteinConcentrations:
         f.write("B_tot\t" + str(proteinConcentration) + "\n")
         f.write("seed\t" + str(randint(0, 999999)) + "\n")
         f.write("p_epistasis\t" + str(p_epistasis) + "\n")
+        f.write("p_effect\t" + str(p_effect) + "\n")
+        f.write("epi_restrict\t" + str(epi_restrict) + "\n")
     
     #create second round directories
     secondDir = workingDirectory + "/secondFromProt" + str(proteinConcentration)
@@ -58,6 +62,8 @@ for proteinConcentration in proteinConcentrations:
             f.write("B_tot\t" + str(proteinConcentration2) + "\n")
             f.write("seed\t" + str(randint(0, 999999)) + "\n")
             f.write("p_epistasis\t" + str(p_epistasis) + "\n")
+            f.write("p_effect\t" + str(p_effect) + "\n")
+            f.write("epi_restrict\t" + str(epi_restrict) + "\n")
 
 #run first simulation
 command = pathToSim + " --working-dir " + firstRoundDirectories[0]
