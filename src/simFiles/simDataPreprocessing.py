@@ -1,5 +1,4 @@
 import numpy as np
-from numba import jit
 from sklearn.preprocessing import PolynomialFeatures
 
 #function that splits a sequence at binomial random points into fragments
@@ -76,7 +75,7 @@ def alignFragments(readFragments: list, sequenceLength: int) -> list:
     
     return alignedFragments
 
-@jit(parallel=True, forceobj=True)
+
 def convertToMatrix(path : str, maxNumSequences : int, splittingProbability : float, readSize: int, proteinConcentration: int, proteinConcentration2 = None, seed = 1) -> np.array:
     
     """
@@ -136,7 +135,6 @@ def convertToMatrix(path : str, maxNumSequences : int, splittingProbability : fl
         
     return alignedFragmentsMatrix
 
-@jit(parallel=True, forceobj=True)
 def convertToInteractionMatrix(path : str, maxNumSequences : int, splittingProbability : float, readSize: int, proteinConcentration: int, proteinConcentration2 = None, seed = 1) -> np.array:
     """
     This function loads a sequence output of the dmMIMESim simulator, preprocesses it and returns it as a 2d numpy array. It parces the sequences to an 
@@ -199,7 +197,6 @@ def convertToInteractionMatrix(path : str, maxNumSequences : int, splittingProba
     
     return interactionMatrix
     
-@jit(parallel=True, forceobj=True)
 def convertToOneHotMatrix(path : str, maxNumSequences : int, splittingProbability : float, readSize: int, proteinConcentration: int, proteinConcentration2 = None, seed = 1) -> np.array:
     """
     This function loads a sequence output of the dmMIMESim simulator, preprocesses it and returns it as a 2d numpy array. It parces the sequences to an 
