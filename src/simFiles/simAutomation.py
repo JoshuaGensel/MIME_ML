@@ -2,17 +2,17 @@ import subprocess
 import os
 from random import *
 
-pathToSim = "~/programming_projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/fullEpistasis"
+pathToSim = "~/projects/dmMIMESim/build/bin/MIMESim_prog"
+workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/millSpecies"
 
 #parameters
 L = 100
 q = 4
-M = 100000
+M = 1000000
 p_mut = 0.0225
 p_error = 0.0045
-p_effect = 1
-p_epistasis = 1
+p_effect = 0.5
+p_epistasis = 0.3
 epi_restrict = 0
 proteinConcentrations = [1, 6, 15, 30]
 
