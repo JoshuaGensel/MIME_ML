@@ -124,59 +124,69 @@ def convertToMatrix(path : str, maxNumSequences : int, splittingProbability : fl
 
     return alignedFragmentsMatrix
 
+def fragmentSequences(pathInput : str, pathOutput : str, maxNumSequences : int, splittingProbability : float, readSize: int, seed = 1) -> np.array:
+    
+    """
+    This function loads a sequence output of the dmMIMESim simulator, preprocesses it and writes an output file from it. It parces the sequences to an 
+    alignment of reads to emulate the output of the experimenal MIME procedure.
+    
+    Firstly it converts the sequences to a binary encoding where '1 = mutated', '-1 = wildtype'. Then it cuts the sequences into fragments at random 
+    points, but not more then 'maxSplits'. The parts of the fragments that would not be read because of the limited read length ('readSize') get 
+    replaced by zeros (Therefore '0 = missing'). The fragments get aligned onto the original sequence, where every residue that the fragments do not 
+    cover are set to zero as well. Finally the resulting read alignment is written to the outputPath.
+    
+    Args:
+        pathInput (str): path to the .txt-file of the sequence output from dmMIMESim.
+        pathOutput (str): path to the output file.
+        maxNumSequences (int): The maximum number of sequences to be loaded. If the number of sequences in the file is smaller, all sequences are loaded.
+        splittingProbability (float): The probability per nucleotide to pslit the sequence there into fragments.
+        readSize (int): maximum read length of the sequencing machine (for Illumina deep sequencing = 100).
+        seed (int, optional): numpy seed. important for reproducability of random fragmentation. Defaults to 1.
 
-boundFragmented = convertToMatrix('./src/expFiles/bound.txt', maxNumSequences=100, splittingProbability=1/20, readSize=5, seed=1)
-np.savetxt('./src/expFiles/boundFragmented.txt', boundFragmented, fmt='%s', delimiter='')
-unboundFragmented = convertToMatrix('./src/expFiles/unbound.txt', maxNumSequences=100, splittingProbability=1/20, readSize=5, seed=372)
-np.savetxt('./src/expFiles/unboundFragmented.txt', unboundFragmented, fmt='%s', delimiter='')
+    Returns:
+        np.array: 2d numpy array of fragmented sequence alignment.
+    """
+    fragmentsMatrix = convertToMatrix(pathInput,maxNumSequences, splittingProbability, readSize, seed)
+    np.savetxt(pathOutput, fragmentsMatrix, fmt='%s', delimiter='')
+    return None
 
 #function to mark wildtype residues
-def markWildtype(pathToSequenceFile : str, pathToWildtypeSequence : str) -> np.array:
+def markWildtype(sequences : np.array, pathToWildtypeSequence : str) -> np.array:
     """
-    This function reads in sequence files and replaces all wildtype residues with '1'. Then it returns the marked sequences as a numpy array.
+    This function reads in a wildtype and replaces all wildtype residues of a provided sequence array with '1'. Then it returns the marked sequences as a numpy array.
 
     Args:
-        pathToSequenceFile (str): path to the .txt-file of the sequences.
+        sequences (np.array): 2d numpy array of sequences. dtype = str.
         pathToWildtypeSequence (str): path to the .txt-file of the wildtype sequence.
 
     Returns:
         np.array: 2d numpy array of marked sequences.
     """
 
-    #read in sequences and wildtype sequence
-    sequenceArray = np.genfromtxt(pathToSequenceFile, dtype = str, delimiter=1)
+    #read in wildtype sequence
     wildtypeSequence = np.genfromtxt(pathToWildtypeSequence, dtype = str, delimiter=1)
 
     #replace wildtype residues with 1
-    markedSequenceArray = np.where(sequenceArray == wildtypeSequence, 1, sequenceArray)
+    markedSequenceArray = np.where(sequences == wildtypeSequence, 1, sequences)
 
     return markedSequenceArray
 
-boundMarked = markWildtype('./src/expFiles/boundFragmented.txt', './src/expFiles/wildtype.txt')
-np.savetxt('./src/expFiles/boundMarked.txt', boundMarked, fmt='%s', delimiter='')
-unboundMarked = markWildtype('./src/expFiles/unboundFragmented.txt', './src/expFiles/wildtype.txt')
-np.savetxt('./src/expFiles/unboundMarked.txt', unboundMarked, fmt='%s', delimiter='')
-
 
 #function that reads in file and creates labels
-def createLabels(pathBound : str, pathUnbound : str) -> np.array:
+def createLabels(boundPool : np.array, unboundPool : np.array) -> np.array:
     """
-    This function reads in two sequence fragment files from bound and unbound pool. It then creates the labels for all fragments and outputs a numpy array
-    of the sequences and the labels. It reads in both files and concatenates them to one array. Then for every sequence it counts how often it appears in
-    the bound and unbound pool. The sequence is then labeled with the proportion of this unique sequence in the bound pool. If the sequence is not in the
-    bound pool, it is labeled with 0. The resulting array is then returned.
+    This function takes in two sequence arrays for bound and unbound pool. It then creates the labels for all fragments and outputs a numpy array
+    of the sequences and the labels. It takes both input arrays and concatenates them to one array. Then for every sequence it counts how often sequences 
+    with identical mutations appear in the bound and unbound pool. The sequence is then labeled with the proportion of sequences with identical mutations 
+    in the bound pool. If the sequence is not in the bound pool, it is labeled with 0. The resulting array is then returned.
 
     Args:
-        pathBound (str): path to the .txt-file of the bound pool.
-        pathUnbound (str): path to the .txt-file of the unbound pool.
+        boundPool (np.array): 2d numpy array of sequences of the bound pool. dtype = str.
+        unboundPool (np.array): 2d numpy array of sequences of the unbound pool. dtype = str.
 
     Returns:
         np.array: 2d numpy array of sequences and labels.
     """
-
-    #read in bound and unbound pool
-    boundPool = np.genfromtxt(pathBound, dtype = str, delimiter=1)
-    unboundPool = np.genfromtxt(pathUnbound, dtype = str, delimiter=1)
 
     #concatenate bound and unbound pool
     pool = np.concatenate((boundPool, unboundPool), axis = 0)
@@ -200,7 +210,7 @@ def createLabels(pathBound : str, pathUnbound : str) -> np.array:
     #iterate through all sequences in the pool
     for i in range(len(pool)):
         #if the sequence does not contain any "A", "G", "C" or "T", it is a wildtype sequence
-        if np.array_equal(np.where(pool[i] == "A"), np.array([])) and np.array_equal(np.where(pool[i] == "G"), np.array([])) and np.array_equal(np.where(pool[i] == "C"), np.array([])) and np.array_equal(np.where(pool[i] == "T"), np.array([])):
+        if "A" not in pool[i] and "G" not in pool[i] and "C" not in pool[i] and "T" not in pool[i]:
             labels = np.append(labels, wildtypeProportion)
 
         else:
@@ -241,11 +251,8 @@ def createLabels(pathBound : str, pathUnbound : str) -> np.array:
 
     return pool
 
-dataMarked = createLabels('./src/expFiles/boundMarked.txt', './src/expFiles/unboundMarked.txt')
-np.savetxt('./src/expFiles/dataMarked.txt', dataMarked, fmt='%s')
-
 #function that unmarks the wildtype sequences
-def unmarkWildtype(pathToSequences : str, pathToWildtype : str) -> np.array:
+def unmarkWildtype(sequences : np.array, pathToWildtype : str) -> np.array:
     """
     This function reads in a sequence file and a wildtype sequence file. It then unmarks the wildtype sequences in the sequence file and
     returns the resulting array. Wildtype residues in the input sequences are marked with a "1" and are converted back to the corresponding 
@@ -259,8 +266,7 @@ def unmarkWildtype(pathToSequences : str, pathToWildtype : str) -> np.array:
         np.array: 2d numpy array of sequences.
     """
 
-    #read in sequences and wildtype sequence
-    sequences = np.genfromtxt(pathToSequences, dtype = str, delimiter=" ")
+    #read in wildtype sequence
     wildtype = np.genfromtxt(pathToWildtype, dtype = str, delimiter=1)
 
     #iterate through all columns in the sequences except for the last one
@@ -270,8 +276,37 @@ def unmarkWildtype(pathToSequences : str, pathToWildtype : str) -> np.array:
 
     return sequences
 
-dataUnmarked = unmarkWildtype('./src/expFiles/dataMarked.txt', './src/expFiles/wildtype.txt')
-np.savetxt('./src/expFiles/dataUnmarked.txt', dataUnmarked, fmt='%s')
+
+def labelData(pathToBound : str, pathToUnbound : str, pathToWildtype : str, outputPath : str) -> None:
+    """_summary_
+
+    Args:
+        pathToBound (str): _description_
+        pathToUnbound (str): _description_
+        pathToWildtype (str): _description_
+        outputPath (str): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    #read in the bound and unbound sequences
+    bound = np.genfromtxt(pathToBound, dtype = str, delimiter=1)
+    unbound = np.genfromtxt(pathToUnbound, dtype = str, delimiter=1)
+
+    #mark wildtype in the sequences
+    boundMarked = markWildtype(bound, pathToWildtype)
+    unboundMarked = markWildtype(unbound, pathToWildtype)
+
+    #label the sequences
+    labelledSequences = createLabels(boundMarked, unboundMarked)
+
+    #unmark the wildtype sequences
+    unmarkedSequences = unmarkWildtype(labelledSequences, pathToWildtype)
+
+    #write the sequences to a file
+    np.savetxt(outputPath, unmarkedSequences, fmt='%s')
+
+    return None
 
 #function that rewrites the sequences to a one hot encoded format
 def oneHotEncode(pathToData : str, outputPath : str) -> None:
@@ -312,4 +347,7 @@ def oneHotEncode(pathToData : str, outputPath : str) -> None:
                 f2.write("\n")
     return None
 
-oneHotEncode('./src/expFiles/dataUnmarked.txt', './src/expFiles/dataOneHot.txt')
+fragmentSequences(pathInput="./src/expFiles/bound.txt", pathOutput="./src/expFiles/fragmentedDataBound.txt", maxNumSequences=10000, splittingProbability= 1/20, readSize=7,seed=42)
+fragmentSequences(pathInput="./src/expFiles/unbound.txt", pathOutput="./src/expFiles/fragmentedDataUnbound.txt", maxNumSequences=10000, splittingProbability= 1/20, readSize=7,seed=42)
+labelData(pathToBound="./src/expFiles/fragmentedDataBound.txt", pathToUnbound="./src/expFiles/fragmentedDataUnbound.txt", pathToWildtype="./src/expFiles/wildtype.txt", outputPath="./src/expFiles/labelledData.txt")
+oneHotEncode(pathToData="./src/expFiles/labelledData.txt", outputPath="./src/expFiles/oneHotEncodedData.txt")
