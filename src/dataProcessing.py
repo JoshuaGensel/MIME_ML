@@ -1,4 +1,8 @@
 import numpy as np
+from tqdm import tqdm
+import os
+import random
+
 
 #function that splits a sequence at binomial random points into fragments
 def splitSequence(seq: str, sequenceLength: int, splittingProbability: float) -> list:
@@ -191,60 +195,26 @@ def createLabels(boundPool : np.array, unboundPool : np.array) -> np.array:
     #concatenate bound and unbound pool
     pool = np.concatenate((boundPool, unboundPool), axis = 0)
 
-    countWildtypeBound = 0
-    countWildtypeUnbound = 0
+    #replace '1' with '0' in the pool
+    poolOnlyMutations = np.where(pool == '1', '0', pool)
+    boundPoolOnlyMutations = np.where(boundPool == '1', '0', boundPool)
+    unboundPoolOnlyMutations = np.where(unboundPool == '1', '0', unboundPool)
 
-    #count the number of wildtype sequences in the bound pool
-    for i in range(len(boundPool)):
-        #if sequence does not contain any "A", "G", "C" or "T", count it
-        if "A" not in boundPool[i] and "G" not in boundPool[i] and "C" not in boundPool[i] and "T" not in boundPool[i]:
-            countWildtypeBound += 1
-    #count the number of wildtype sequences in the unbound pool
-    for i in range(len(unboundPool)):
-        #if sequence does not contain any "A", "G", "C" or "T", count it
-        if "A" not in unboundPool[i] and "G" not in unboundPool[i] and "C" not in unboundPool[i] and "T" not in unboundPool[i]:
-            countWildtypeUnbound += 1
-    wildtypeProportion = countWildtypeBound / (countWildtypeBound + countWildtypeUnbound)
-
+    #loop over all sequences in the pool
+    print('creating labels...')
     labels = np.array([])
-    #iterate through all sequences in the pool
-    for i in range(len(pool)):
-        #if the sequence does not contain any "A", "G", "C" or "T", it is a wildtype sequence
-        if "A" not in pool[i] and "G" not in pool[i] and "C" not in pool[i] and "T" not in pool[i]:
-            labels = np.append(labels, wildtypeProportion)
+    for i in tqdm(range(len(pool)), ):
+        #count how often poolOnlyMutations[i] appears in boundPoolOnlyMutations
+        countBound = np.count_nonzero(np.all(poolOnlyMutations[i] == boundPoolOnlyMutations, axis = 1))
+        #count how often poolOnlyMutations[i] appears in unboundPoolOnlyMutations
+        countUnbound = np.count_nonzero(np.all(poolOnlyMutations[i] == unboundPoolOnlyMutations, axis = 1))
 
+        #label the sequences with the proportion of the unique sequence in the bound pool
+        if countBound == 0:
+            labels = np.append(labels, 0)
         else:
-            countBound = 0
-            #iterate through all sequences in the bound pool
-            for j in range(len(boundPool)):
-                    #if the position of "A"s in the sequence is the same, count it
-                    if np.array_equal(np.where(pool[i] == "A"), np.where(boundPool[j] == "A")):
-                        #if the position of "G"s in the sequence is the same, count it
-                        if np.array_equal(np.where(pool[i] == "G"), np.where(boundPool[j] == "G")):
-                            #if the position of "C"s in the sequence is the same, count it
-                            if np.array_equal(np.where(pool[i] == "C"), np.where(boundPool[j] == "C")):
-                                #if the position of "T"s in the sequence is the same, count it
-                                if np.array_equal(np.where(pool[i] == "T"), np.where(boundPool[j] == "T")):
-                                    countBound += 1
-            
-            countUnbound = 0
-            #iterate through all sequences in the unbound pool
-            for j in range(len(unboundPool)):
-                    #if the position of "A"s in the sequence is the same, count it
-                    if np.array_equal(np.where(pool[i] == "A"), np.where(unboundPool[j] == "A")):
-                        #if the position of "G"s in the sequence is the same, count it
-                        if np.array_equal(np.where(pool[i] == "G"), np.where(unboundPool[j] == "G")):
-                            #if the position of "C"s in the sequence is the same, count it
-                            if np.array_equal(np.where(pool[i] == "C"), np.where(unboundPool[j] == "C")):
-                                #if the position of "T"s in the sequence is the same, count it
-                                if np.array_equal(np.where(pool[i] == "T"), np.where(unboundPool[j] == "T")):
-                                    countUnbound += 1
-
-            #label the sequences with the proportion of the unique sequence in the bound pool
-            if countBound == 0:
-                labels = np.append(labels, 0)
-            else:
-                labels = np.append(labels, countBound / (countBound + countUnbound))
+            labels = np.append(labels, countBound / (countBound + countUnbound))
+        #print(i, '/', len(pool), 'done', "label: ", labels[i])
 
     #add the labels to the pool
     pool = np.column_stack((pool, labels))
@@ -290,8 +260,8 @@ def labelData(pathToBound : str, pathToUnbound : str, pathToWildtype : str, outp
         _type_: _description_
     """
     #read in the bound and unbound sequences
-    bound = np.genfromtxt(pathToBound, dtype = str, delimiter=1)
-    unbound = np.genfromtxt(pathToUnbound, dtype = str, delimiter=1)
+    bound = np.genfromtxt(pathToBound, dtype = str, delimiter=" ")
+    unbound = np.genfromtxt(pathToUnbound, dtype = str, delimiter=" ")
 
     #mark wildtype in the sequences
     boundMarked = markWildtype(bound, pathToWildtype)
@@ -304,7 +274,7 @@ def labelData(pathToBound : str, pathToUnbound : str, pathToWildtype : str, outp
     unmarkedSequences = unmarkWildtype(labelledSequences, pathToWildtype)
 
     #write the sequences to a file
-    np.savetxt(outputPath, unmarkedSequences, fmt='%s')
+    np.savetxt(outputPath, unmarkedSequences, fmt='%s', delimiter=' ')
 
     return None
 
@@ -347,7 +317,150 @@ def oneHotEncode(pathToData : str, outputPath : str) -> None:
                 f2.write("\n")
     return None
 
-fragmentSequences(pathInput="./src/expFiles/bound.txt", pathOutput="./src/expFiles/fragmentedDataBound.txt", maxNumSequences=10000, splittingProbability= 1/20, readSize=7,seed=42)
-fragmentSequences(pathInput="./src/expFiles/unbound.txt", pathOutput="./src/expFiles/fragmentedDataUnbound.txt", maxNumSequences=10000, splittingProbability= 1/20, readSize=7,seed=42)
-labelData(pathToBound="./src/expFiles/fragmentedDataBound.txt", pathToUnbound="./src/expFiles/fragmentedDataUnbound.txt", pathToWildtype="./src/expFiles/wildtype.txt", outputPath="./src/expFiles/labelledData.txt")
-oneHotEncode(pathToData="./src/expFiles/labelledData.txt", outputPath="./src/expFiles/oneHotEncodedData.txt")
+#function to automatically parse dmMIMESim data
+def parseSimDataPool(pathToData : str, outputPath : str, trainingSize : float, splittingProbability : float, readSize : int, seed : int) -> None:
+    """
+    This function reads in the dmMIMESim data files of one pool and parses them to training data. Then the data is written to a file.
+
+    Args:
+        pathToData (str): path to the simulator output directory from simAutomation.py.
+        outputPath (str): path to the output file.
+        trainingSize (float): fraction of the data to be used for training.
+        splittingProbability (float): probability of splitting at each position.
+        readSize (int): read size of the sequencer that reads in fragments from both sides
+        seed (int): seed for the random number generator.
+    """
+
+    #fragment the sequences
+    fragmentSequences(pathInput=pathToData+'7.txt', pathOutput="./data/simData/fragmentedDataBound.txt", maxNumSequences=1000000, splittingProbability= splittingProbability, readSize=readSize,seed=seed+42)
+    fragmentSequences(pathInput=pathToData+'8.txt', pathOutput="./data/simData/fragmentedDataUnbound.txt", maxNumSequences=1000000, splittingProbability= splittingProbability, readSize=readSize,seed=seed+37)
+
+    #read in the bound and unbound sequences
+    bound = np.genfromtxt("./data/simData/fragmentedDataBound.txt", dtype = str, delimiter=1)
+    unbound = np.genfromtxt("./data/simData/fragmentedDataUnbound.txt", dtype = str, delimiter=1)
+
+    #shuffle the sequences
+    np.random.seed(seed)
+    np.random.shuffle(bound)
+    np.random.seed(seed+67)
+    np.random.shuffle(unbound)
+
+    #split the sequences into training and test data
+    boundTraining = bound[:int(trainingSize*bound.shape[0])]
+    boundTest = bound[int(trainingSize*bound.shape[0]):]
+    unboundTraining = unbound[:int(trainingSize*unbound.shape[0])]
+    unboundTest = unbound[int(trainingSize*unbound.shape[0]):]
+
+    #write the training and test data to a file
+    np.savetxt('./data/simData/boundTraining.txt', boundTraining, fmt='%s')
+    np.savetxt('./data/simData/boundTest.txt', boundTest, fmt='%s')
+    np.savetxt('./data/simData/unboundTraining.txt', unboundTraining, fmt='%s')
+    np.savetxt('./data/simData/unboundTest.txt', unboundTest, fmt='%s')
+
+    #remove arrays from memory
+    del bound
+    del unbound
+    del boundTraining
+    del boundTest
+    del unboundTraining
+    del unboundTest
+
+    #label the sequences
+    labelData(pathToBound="./data/simData/boundTraining.txt", pathToUnbound="./data/simData/unboundTraining.txt", pathToWildtype="./data/simData/wildtype.txt", outputPath="./data/simData/labelledDataTraining.txt")
+    labelData(pathToBound="./data/simData/boundTest.txt", pathToUnbound="./data/simData/unboundTest.txt", pathToWildtype="./data/simData/wildtype.txt", outputPath="./data/simData/labelledDataTest.txt")
+
+    #one hot encode the sequences
+    oneHotEncode(pathToData="./data/simData/labelledDataTraining.txt", outputPath=outputPath+'Training.txt')
+    oneHotEncode(pathToData="./data/simData/labelledDataTest.txt", outputPath=outputPath+'Test.txt')
+
+    print("Pool done!")
+
+    return None
+
+
+#parseSimDataPool(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/experimentalConditions/secondFromProt1/prot6/sequences/", outputPath="./data/simData/", trainingSize=0.7, splittingProbability=0/100, readSize=50,seed=133)
+
+#function to load all pools from a dmMIMESim run
+def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : list, trainingSize : float, splittingProbability : float, readSize : int, seed : int) -> None:
+    """
+    This function loads all pools from a dmMIMESim run and parses them to training data. Then the data is written to a file.
+
+    Args:
+        pathToData (str): path to the simulator output directory from simAutomation.py.
+        outputPath (str): path to the output file.
+        trainingSize (float): fraction of the data to be used for training.
+        splittingProbability (float): probability of splitting at each position.
+        readSize (int): read size of the sequencer that reads in fragments from both sides
+        seed (int): seed for the random number generator.
+    """
+
+    for firstRoundConcentration in proteinConcentrations:
+        for secondRoundConcentration in proteinConcentrations:
+            print("Loading pool with first round concentration " + str(firstRoundConcentration) + " and second round concentration " + str(secondRoundConcentration))
+            pathToPool = pathToData + "secondFromProt" + str(firstRoundConcentration) + "/prot" + str(secondRoundConcentration) + "/sequences/"
+            outputPathPool = outputPath + str(firstRoundConcentration) + "_" + str(secondRoundConcentration) + "/"
+            #create output directory
+            if not os.path.exists(outputPathPool):
+                os.makedirs(outputPathPool)
+            parseSimDataPool(pathToData=pathToPool, outputPath=outputPathPool, trainingSize=trainingSize, splittingProbability=splittingProbability, readSize=readSize,seed=seed)
+    
+    #create new .txt file with all training data
+    with open(outputPath + "trainingData.txt", "w") as file:
+        #concatenate all training data
+        for firstRoundConcentration in proteinConcentrations:
+            for secondRoundConcentration in proteinConcentrations:
+                #create one hot protein identifier
+                proteinIdentifier = "0" * len(proteinConcentrations)*2
+                proteinIdentifier = proteinIdentifier[:proteinConcentrations.index(firstRoundConcentration)] + "1" + proteinIdentifier[proteinConcentrations.index(firstRoundConcentration)+1:]
+                proteinIdentifier = proteinIdentifier[:len(proteinConcentrations) + proteinConcentrations.index(secondRoundConcentration)] + "1" + proteinIdentifier[len(proteinConcentrations) + proteinConcentrations.index(secondRoundConcentration)+1:]
+                #put whitespace between each character
+                proteinIdentifier = " ".join(proteinIdentifier)
+                with open(outputPath + str(firstRoundConcentration) + "_" + str(secondRoundConcentration) + "/Training.txt", "r") as file2:
+                    #add protein identifier to start of each line
+                    file.write("".join([proteinIdentifier + " " + line for line in file2]))
+        
+
+    #create new .txt file with all test data
+    with open(outputPath + "testData.txt", "w") as file:
+        #concatenate all test data
+        for firstRoundConcentration in proteinConcentrations:
+            for secondRoundConcentration in proteinConcentrations:
+                #create one hot protein identifier
+                proteinIdentifier = "0" * len(proteinConcentrations)*2
+                proteinIdentifier = proteinIdentifier[:proteinConcentrations.index(firstRoundConcentration)] + "1" + proteinIdentifier[proteinConcentrations.index(firstRoundConcentration)+1:]
+                proteinIdentifier = proteinIdentifier[:len(proteinConcentrations) + proteinConcentrations.index(secondRoundConcentration)] + "1" + proteinIdentifier[len(proteinConcentrations) + proteinConcentrations.index(secondRoundConcentration)+1:]
+                #put whitespace between each character
+                proteinIdentifier = " ".join(proteinIdentifier)
+                with open(outputPath + str(firstRoundConcentration) + "_" + str(secondRoundConcentration) + "/Test.txt", "r") as file2:
+                    #add protein identifier to start of each line and write to file at random positions
+                    file.write("".join([proteinIdentifier + " " + line for line in file2]))
+    
+    #shuffle the training data
+    with open(outputPath + "trainingData.txt", "r") as file:
+        lines = file.readlines()
+        random.seed(seed)
+        random.shuffle(lines)
+
+    #write shuffled training data to file
+    with open(outputPath + "trainingData.txt", "w") as file:
+        file.write("".join(lines))
+    
+    #shuffle the test data
+    with open(outputPath + "testData.txt", "r") as file:
+        lines = file.readlines()
+        random.seed(seed)
+        random.shuffle(lines)
+
+    #write shuffled test data to file
+    with open(outputPath + "testData.txt", "w") as file:
+        file.write("".join(lines))
+
+    return None
+
+loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/lowSpecies/", outputPath="/mnt/d/data/MIME_data/simData/dmMIME/lowSpecies/data/", proteinConcentrations=[1,6,15,30], trainingSize=0.8, splittingProbability=3/100, readSize=23,seed=133)
+
+
+# fragmentSequences(pathInput="./src/expFiles/bound.txt", pathOutput="./src/expFiles/fragmentedDataBound.txt", maxNumSequences=10000, splittingProbability= 1/20, readSize=7,seed=42)
+# fragmentSequences(pathInput="./src/expFiles/unbound.txt", pathOutput="./src/expFiles/fragmentedDataUnbound.txt", maxNumSequences=10000, splittingProbability= 1/20, readSize=7,seed=42)
+# labelData(pathToBound="./src/expFiles/fragmentedDataBound.txt", pathToUnbound="./src/expFiles/fragmentedDataUnbound.txt", pathToWildtype="./src/expFiles/wildtype.txt", outputPath="./src/expFiles/labelledData.txt")
+# oneHotEncode(pathToData="./src/expFiles/labelledData.txt", outputPath="./src/expFiles/oneHotEncodedData.txt")
