@@ -200,23 +200,37 @@ def createLabels(boundPool : np.array, unboundPool : np.array) -> np.array:
     boundPoolOnlyMutations = np.where(boundPool == '1', '0', boundPool)
     unboundPoolOnlyMutations = np.where(unboundPool == '1', '0', unboundPool)
 
-    #loop over all sequences in the pool
     print('creating labels...')
-    labels = np.array([])
-    for i in tqdm(range(len(pool)), ):
-        #count how often poolOnlyMutations[i] appears in boundPoolOnlyMutations
-        countBound = np.count_nonzero(np.all(poolOnlyMutations[i] == boundPoolOnlyMutations, axis = 1))
-        #count how often poolOnlyMutations[i] appears in unboundPoolOnlyMutations
-        countUnbound = np.count_nonzero(np.all(poolOnlyMutations[i] == unboundPoolOnlyMutations, axis = 1))
+    #create dicts for bound and unbound pool
+    boundDict = {}
+    unboundDict = {}
 
-        #label the sequences with the proportion of the unique sequence in the bound pool
-        if countBound == 0:
-            labels = np.append(labels, 0)
+    #iterate through all unique sequences in the bound pool
+    for seq in tqdm(np.unique(boundPoolOnlyMutations, axis = 0)):
+        #for every sequence count how often it appears in the bound pool
+        boundDict[seq.tobytes()] = np.count_nonzero(np.all(boundPoolOnlyMutations == seq, axis = 1))
+    
+    #iterate through all unique sequences in the unbound pool
+    for seq in tqdm(np.unique(unboundPoolOnlyMutations, axis = 0)):
+        #for every sequence count how often it appears in the unbound pool
+        unboundDict[seq.tobytes()] = np.count_nonzero(np.all(unboundPoolOnlyMutations == seq, axis = 1))
+
+    #create empty array for labels
+    labels = np.zeros((pool.shape[0], 1))
+
+    #iterate through all sequences in the pool
+    for i in tqdm(range(pool.shape[0])):
+        countBound = boundDict.get(poolOnlyMutations[i].tobytes(), 0)
+        countUnbound = unboundDict.get(poolOnlyMutations[i].tobytes(), 0)
+        #calculate the proportion of sequences with identical mutations in the bound pool
+        if countBound + countUnbound != 0:
+            labels[i] = countBound / (countBound + countUnbound)
+            #print(i, '/', pool.shape[0], 'label', labels[i], 'countBound', countBound, 'countUnbound', countUnbound)
         else:
-            labels = np.append(labels, countBound / (countBound + countUnbound))
-        #print(i, '/', len(pool), 'done', "label: ", labels[i])
+            labels[i] = 0
+            #print(i, '/', pool.shape[0], 'label', labels[i], 'countBound', countBound, 'countUnbound', countUnbound)
 
-    #add the labels to the pool
+    #add labels to pool
     pool = np.column_stack((pool, labels))
 
     return pool
@@ -457,7 +471,7 @@ def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : lis
 
     return None
 
-loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/lowSpecies/", outputPath="/mnt/d/data/MIME_data/simData/dmMIME/lowSpecies/data/", proteinConcentrations=[1,6,15,30], trainingSize=0.8, splittingProbability=3/100, readSize=23,seed=133)
+loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/experimentalConditions/", outputPath="/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/experimentalConditions/data/", proteinConcentrations=[1,6,15,30], trainingSize=0.8, splittingProbability=3/100, readSize=23,seed=133)
 
 
 # fragmentSequences(pathInput="./src/expFiles/bound.txt", pathOutput="./src/expFiles/fragmentedDataBound.txt", maxNumSequences=10000, splittingProbability= 1/20, readSize=7,seed=42)
