@@ -3,7 +3,7 @@ import os
 from random import *
 
 pathToSim = "~/projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/"
+workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/epistasisTest"
 
 #parameters
 L = 100
@@ -11,8 +11,8 @@ q = 4
 M = 5000000
 p_mut = 0.0225
 p_error = 0.0045
-p_effect = 0.5
-p_epistasis = 0.3
+p_effect = 1.0
+p_epistasis = 0.5
 epi_restrict = 1
 proteinConcentrations = [1, 6, 15, 30]
 

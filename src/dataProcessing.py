@@ -505,7 +505,7 @@ def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : lis
 
     return None
 
-loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/", outputPath="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/data/", proteinConcentrations=[1,6,15,30], evalSize=50000, splittingProbability=3/100, readSize=23,seed=133)
+loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/errorTest/", outputPath="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/errorTest/data/", proteinConcentrations=[1,6,15,30], evalSize=50000, splittingProbability=3/100, readSize=23,seed=423)
 
 #labelBinaryData(pathToBound="./data/simData/boundTraining.txt", pathToUnbound="./data/simData/unboundTraining.txt", outputPath="./data/simData/labelledDataTraining.txt")
 

@@ -172,3 +172,117 @@ def train(training_path, test_path, epochs, learning_rate, batch_size, lambda_l1
 
     #return model and history
     return model, train_history, mae_history
+
+
+def inferSingleProbabilities(model, numberFeatures):
+    """
+    Predicts binding probabilities for all possible mutations of a single position of the RNA sequence. For this, the model predicts
+    synthetic data where only one mutation is present at a time. Ther order of the predictions is the following: position 1 wildtype,
+    position 1 mutation 1, position 1 mutation 2, position 1 mutation 3, position 2 wildtype, position 2 mutation 1, etc.). The
+    predictions are returned as a list of binding probabilities.
+
+    Args:
+        model (MIMENet.model): Model returned by train function of MIMENet used for prediction
+        numberFeatures (int): Number of features in the dataset. This is 4 times the number of postitions of the RNA (from one 
+        hot encoding) plus the number of protein concentrations times the number of rounds performed (8 for the classical MIME 
+        experiment).
+
+    Returns:
+        list: a list of binding probabilities for each mutation along the RNA sequence
+    """
+    predictions = []
+    prediction_example = np.zeros(numberFeatures)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    for i in tqdm(range(8, numberFeatures)):
+        current_prediction_example = prediction_example.copy()
+        current_prediction_example[i] = 1
+        current_prediction_example = torch.from_numpy(current_prediction_example).float()
+        current_prediction_example = current_prediction_example.to(device)
+        #output binding probability and append list for given protein concentration combination
+        with torch.no_grad():
+            output = model(current_prediction_example)
+            predictions.append(output.item())
+
+    return predictions
+
+def inferPairwiseProbabilities(model, numberFeatures):
+    """
+    Predicts binding probabilities for all possible mutations of a pair of positions of the RNA sequence. For this, the model predicts
+    synthetic data where two mutations are present at a time. Ther order of iterations through the possible mutations is the following:
+    first position, second position, first mutation, second mutation. The predictions are returned as a list of binding probabilities.
+
+    Args:
+        model (MIMENet.model): Model returned by train function of MIMENet used for prediction
+        numberFeatures (int): Number of features in the dataset. This is 4 times the number of postitions of the RNA (from one 
+        hot encoding) plus the number of protein concentrations times the number of rounds performed (8 for the classical MIME 
+        experiment).
+
+    Returns:
+        list: a list of binding probabilities for each mutation along the RNA sequence
+    """
+    
+    predictionsPairwise = []
+    prediction_example = np.zeros(numberFeatures)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    for i in tqdm(range(8, numberFeatures,4)):
+        for j in range(i+4, numberFeatures,4):
+            for k in range(1,4):
+                for l in range(1,4):
+                        current_prediction_example = prediction_example.copy()
+                        current_prediction_example[i+k] = 1
+                        current_prediction_example[j+l] = 1
+                        current_prediction_example = torch.from_numpy(current_prediction_example).float()
+                        current_prediction_example = current_prediction_example.to(device)
+                        #output binding probability and append list for given protein concentration combination
+                        with torch.no_grad():
+                            output = model(current_prediction_example)
+                            predictionsPairwise.append(output.item())
+
+    return predictionsPairwise
+
+def inferEpistasis(model, numberFeatures):
+    """
+    Predicts epistasis values for all possible mutations of a pair of positions of the RNA sequence. For this, the model predicts
+    synthetic data where two mutations are present at a time and compares them to the predictions of the single mutations individually. 
+    The order of iterations through the possible mutations is the following: first position, second position, first mutation, second 
+    mutation. The epistasis is calculated via the formula: ((output_pos1-0.5)*(output_pos2-0.5))/(output_pair-0.5).
+
+    Args:
+        model (MIMENet.model): Model returned by train function of MIMENet used for prediction
+        numberFeatures (int): Number of features in the dataset. This is 4 times the number of postitions of the RNA (from one 
+        hot encoding) plus the number of protein concentrations times the number of rounds performed (4*2=8 for the classical MIME 
+        experiment).
+
+    Returns:
+        list: a list of binding probabilities for each mutation along the RNA sequence
+    """
+
+    epistasisPairwise = []
+    prediction_example = np.zeros(numberFeatures)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    for i in tqdm(range(8, numberFeatures,4)):
+        for j in range(i+4, numberFeatures,4):
+            for k in range(1,4):
+                for l in range(1,4):
+                        current_prediction_example_pos1 = prediction_example.copy()
+                        current_prediction_example_pos1[i+k] = 1
+                        current_prediction_example_pos1 = torch.from_numpy(current_prediction_example_pos1).float()
+                        current_prediction_example_pos1 = current_prediction_example_pos1.to(device)
+                        current_prediction_example_pos2 = prediction_example.copy()
+                        current_prediction_example_pos2[j+l] = 1
+                        current_prediction_example_pos2 = torch.from_numpy(current_prediction_example_pos2).float()
+                        current_prediction_example_pos2 = current_prediction_example_pos2.to(device)
+                        current_prediction_example_pair = prediction_example.copy()
+                        current_prediction_example_pair[i+k] = 1
+                        current_prediction_example_pair[j+l] = 1
+                        current_prediction_example_pair = torch.from_numpy(current_prediction_example_pair).float()
+                        current_prediction_example_pair = current_prediction_example_pair.to(device)
+                        #get binding probabilities of pos1, pos2, and pos1+pos2
+                        with torch.no_grad():
+                            output_pos1 = model(current_prediction_example_pos1)
+                            output_pos2 = model(current_prediction_example_pos2)
+                            output_pair = model(current_prediction_example_pair)
+                            #get epistasis value and append list for given protein concentration combination
+                            epistasisPairwise.append(((output_pos1.item()+0.5)*(output_pos2.item()+0.5))/(output_pair.item()+0.5))
+
+    return epistasisPairwise
