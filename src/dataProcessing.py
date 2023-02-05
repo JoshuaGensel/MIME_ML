@@ -341,7 +341,7 @@ def oneHotEncode(pathToData : str, outputPath : str) -> None:
                     if line[i] == "0":
                         line[i] = "0 0 0 0"
                     #replace every "A" with "1 0 0 0"
-                    if line[i] == "A":
+                    elif line[i] == "A":
                         line[i] = "1 0 0 0"
                     #replace every "G" with "0 1 0 0"
                     elif line[i] == "C":
@@ -358,7 +358,7 @@ def oneHotEncode(pathToData : str, outputPath : str) -> None:
     return None
 
 #function to automatically parse dmMIMESim data
-def parseSimDataPool(pathToData : str, outputPath : str, evalSize : int, splittingProbability : float, readSize : int, seed : int) -> None:
+def parseSimDataPool(pathToData : str, outputPath : str, splittingProbability : float, readSize : int, seed : int, maxNumSequences = 100000) -> None:
     """
     This function reads in the dmMIMESim data files of one pool and parses them to training data. Then the data is written to a file.
 
@@ -371,21 +371,10 @@ def parseSimDataPool(pathToData : str, outputPath : str, evalSize : int, splitti
         seed (int): seed for the random number generator.
     """
 
-    #shuffle dmMIMESim output
-    print("\t Shuffling sequences...")
-    lines=open(pathToData+'7.txt').readlines()
-    random.seed(seed)
-    random.shuffle(lines)
-    open(pathToData+'7.txt','w').writelines(lines)
-    lines=open(pathToData+'8.txt').readlines()
-    random.seed(seed*2)
-    random.shuffle(lines)
-    open(pathToData+'8.txt','w').writelines(lines)
-
     #fragment the sequences
     print("\t Fragmenting sequences...")
-    fragmentSequences(pathInput=pathToData+'7.txt', pathOutput="./data/simData/fragmentedDataBound.txt", maxNumSequences=100000, splittingProbability= splittingProbability, readSize=readSize,seed=seed+42)
-    fragmentSequences(pathInput=pathToData+'8.txt', pathOutput="./data/simData/fragmentedDataUnbound.txt", maxNumSequences=100000, splittingProbability= splittingProbability, readSize=readSize,seed=seed+37)
+    fragmentSequences(pathInput=pathToData+'7.txt', pathOutput="./data/simData/fragmentedDataBound.txt", maxNumSequences=maxNumSequences, splittingProbability= splittingProbability, readSize=readSize,seed=seed+42)
+    fragmentSequences(pathInput=pathToData+'8.txt', pathOutput="./data/simData/fragmentedDataUnbound.txt", maxNumSequences=maxNumSequences, splittingProbability= splittingProbability, readSize=readSize,seed=seed+37)
 
     #read in the bound and unbound sequences
     bound = np.genfromtxt("./data/simData/fragmentedDataBound.txt", dtype = str, delimiter=1)
@@ -398,38 +387,21 @@ def parseSimDataPool(pathToData : str, outputPath : str, evalSize : int, splitti
     np.random.seed(seed+67)
     np.random.shuffle(unbound)
 
-    #grab first evalSize sequences for test set
-    print("\t Splitting training and test data...")
-    boundTest = bound[:evalSize]
-    unboundTest = unbound[:evalSize]
-    #grab the rest for training set
-    boundTraining = bound[evalSize:]
-    unboundTraining = unbound[evalSize:]
-
     #write the training and test data to a file
-    np.savetxt('./data/simData/boundTraining.txt', boundTraining, fmt='%s')
-    np.savetxt('./data/simData/boundTest.txt', boundTest, fmt='%s')
-    np.savetxt('./data/simData/unboundTraining.txt', unboundTraining, fmt='%s')
-    np.savetxt('./data/simData/unboundTest.txt', unboundTest, fmt='%s')
+    np.savetxt('./data/simData/boundTraining.txt', bound, fmt='%s')
+    np.savetxt('./data/simData/unboundTraining.txt', unbound, fmt='%s')
 
     #remove arrays from memory
     del bound
     del unbound
-    del boundTraining
-    del boundTest
-    del unboundTraining
-    del unboundTest
 
     #label the sequences
-    print("\t Labelling training sequences...")
+    print("\t Labelling and concatenating sequences...")
     labelBinaryData(pathToBound="./data/simData/boundTraining.txt", pathToUnbound="./data/simData/unboundTraining.txt", outputPath="./data/simData/labelledDataTraining.txt")
-    print("\t Labelling test sequences...")
-    labelProportionData(pathToBound="./data/simData/boundTest.txt", pathToUnbound="./data/simData/unboundTest.txt", pathToWildtype="./data/simData/wildtype.txt", outputPath="./data/simData/labelledDataTest.txt")
 
     #one hot encode the sequences
     print("\t One hot encoding sequences...")
     oneHotEncode(pathToData="./data/simData/labelledDataTraining.txt", outputPath=outputPath+'Training.txt')
-    oneHotEncode(pathToData="./data/simData/labelledDataTest.txt", outputPath=outputPath+'Test.txt')
 
     print("\t Pool done!")
 
@@ -439,7 +411,7 @@ def parseSimDataPool(pathToData : str, outputPath : str, evalSize : int, splitti
 #parseSimDataPool(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/seqLen100/experimentalConditions/secondFromProt1/prot6/sequences/", outputPath="./data/simData/", trainingSize=0.7, splittingProbability=0/100, readSize=50,seed=133)
 
 #function to load all pools from a dmMIMESim run
-def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : list, evalSize : int, splittingProbability : float, readSize : int, seed : int) -> None:
+def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : list, splittingProbability : float, readSize : int, seed : int, maxNumSequences : int) -> None:
     """
     This function loads all pools from a dmMIMESim run and parses them to training data. Then the data is written to a file.
 
@@ -460,7 +432,7 @@ def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : lis
             #create output directory
             if not os.path.exists(outputPathPool):
                 os.makedirs(outputPathPool)
-            parseSimDataPool(pathToData=pathToPool, outputPath=outputPathPool, evalSize=evalSize, splittingProbability=splittingProbability, readSize=readSize,seed=seed)
+            parseSimDataPool(pathToData=pathToPool, outputPath=outputPathPool, splittingProbability=splittingProbability, readSize=readSize,seed=seed, maxNumSequences=maxNumSequences)
     
     #create new .txt file with all training data
     with open(outputPath + "trainingData.txt", "w") as file:
@@ -476,36 +448,15 @@ def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : lis
                 with open(outputPath + str(firstRoundConcentration) + "_" + str(secondRoundConcentration) + "/Training.txt", "r") as file2:
                     #add protein identifier to start of each line
                     file.write("".join([proteinIdentifier + " " + line for line in file2]))
-        
-
-    #create new .txt file with all test data
-    with open(outputPath + "testData.txt", "w") as file:
-        #concatenate all test data
-        for firstRoundConcentration in proteinConcentrations:
-            for secondRoundConcentration in proteinConcentrations:
-                #create one hot protein identifier
-                proteinIdentifier = "0" * len(proteinConcentrations)*2
-                proteinIdentifier = proteinIdentifier[:proteinConcentrations.index(firstRoundConcentration)] + "1" + proteinIdentifier[proteinConcentrations.index(firstRoundConcentration)+1:]
-                proteinIdentifier = proteinIdentifier[:len(proteinConcentrations) + proteinConcentrations.index(secondRoundConcentration)] + "1" + proteinIdentifier[len(proteinConcentrations) + proteinConcentrations.index(secondRoundConcentration)+1:]
-                #put whitespace between each character
-                proteinIdentifier = " ".join(proteinIdentifier)
-                with open(outputPath + str(firstRoundConcentration) + "_" + str(secondRoundConcentration) + "/Test.txt", "r") as file2:
-                    #add protein identifier to start of each line and write to file at random positions
-                    file.write("".join([proteinIdentifier + " " + line for line in file2]))
     
     #shuffle the training data
     lines = open(outputPath+'trainingData.txt').readlines()
     random.shuffle(lines)
     open(outputPath+'trainingData.txt', 'w').writelines(lines)
 
-    #shuffle the test data
-    lines = open(outputPath+'testData.txt').readlines()
-    random.shuffle(lines)
-    open(outputPath+'testData.txt', 'w').writelines(lines)
-
     return None
 
-loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/errorTest/", outputPath="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/errorTest/data/", proteinConcentrations=[1,6,15,30], evalSize=50000, splittingProbability=3/100, readSize=23,seed=423)
+loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/optimalTest/", outputPath="./data/simData/optimalErrorData/", proteinConcentrations=[1,6,15,30], splittingProbability=1/100, readSize=23,seed=4356, maxNumSequences=150000)
 
 #labelBinaryData(pathToBound="./data/simData/boundTraining.txt", pathToUnbound="./data/simData/unboundTraining.txt", outputPath="./data/simData/labelledDataTraining.txt")
 
