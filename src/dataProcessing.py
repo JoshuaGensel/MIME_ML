@@ -341,16 +341,16 @@ def oneHotEncode(pathToData : str, outputPath : str) -> None:
                     if line[i] == "0":
                         line[i] = "0 0 0 0"
                     #replace every "A" with "1 0 0 0"
-                    elif line[i] == "A":
+                    if line[i] == "A":
                         line[i] = "1 0 0 0"
                     #replace every "G" with "0 1 0 0"
-                    elif line[i] == "C":
+                    if line[i] == "C":
                         line[i] = "0 1 0 0"
                     #replace every "C" with "0 0 1 0"
-                    elif line[i] == "G":
+                    if line[i] == "G":
                         line[i] = "0 0 1 0"
                     #replace every "T" with "0 0 0 1"
-                    elif line[i] == "T":
+                    if line[i] == "T":
                         line[i] = "0 0 0 1"
                 #write the line to the file
                 f2.write(" ".join(line))
@@ -370,6 +370,17 @@ def parseSimDataPool(pathToData : str, outputPath : str, splittingProbability : 
         readSize (int): read size of the sequencer that reads in fragments from both sides
         seed (int): seed for the random number generator.
     """
+
+    #shuffle dmMIMESim output
+    print("\t Shuffling sequences...")
+    lines=open(pathToData+'7.txt').readlines()
+    random.seed(seed)
+    random.shuffle(lines)
+    open(pathToData+'7.txt','w').writelines(lines)
+    lines=open(pathToData+'8.txt').readlines()
+    random.seed(seed*2)
+    random.shuffle(lines)
+    open(pathToData+'8.txt','w').writelines(lines)
 
     #fragment the sequences
     print("\t Fragmenting sequences...")
@@ -456,7 +467,7 @@ def loadAllPools(pathToData : str, outputPath : str, proteinConcentrations : lis
 
     return None
 
-loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/optimalTest/", outputPath="./data/simData/optimalErrorData/", proteinConcentrations=[1,6,15,30], splittingProbability=1/100, readSize=23,seed=4356, maxNumSequences=150000)
+#loadAllPools(pathToData="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/expConditions/", outputPath="/mnt/d/data/MIME_data/simData/dmMIME/highSpecies/expConditions/data/", proteinConcentrations=[1,6,15,30], splittingProbability=3/100, readSize=23,seed=423, maxNumSequences=100000)
 
 #labelBinaryData(pathToBound="./data/simData/boundTraining.txt", pathToUnbound="./data/simData/unboundTraining.txt", outputPath="./data/simData/labelledDataTraining.txt")
 
