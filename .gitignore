@@ -5,3 +5,4 @@ __pycache__
 *.sam
 *.tar.gz
 *.pth
+/archive
