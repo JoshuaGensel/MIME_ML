@@ -3,7 +3,8 @@ from tqdm import tqdm
 import os 
 import random
 
-def label_reads(file_path_bound: str, file_path_unbound: str, file_path_wildtype: str, file_path_output: str):
+def label_reads(file_path_bound: str, file_path_unbound: str, file_path_wildtype: str, 
+                file_path_output: str):
     """
     This function to create labels for the aligned reads of either the MIME 
     experiment or MIME Simulator. Every read gets 3 labels: the first is a 
@@ -132,6 +133,123 @@ def filter_reads(file_path_labeled_reads: str, file_path_output: str, min_length
 
     return None
 
+def one_hot_encode(sequence : str):
+    """
+    This function one-hot encodes a sequence.
+
+    Args:
+        sequence (str): sequence to be one-hot encoded.
+
+    Returns:
+        one_hot_sequence (str): one-hot encoded sequence.
+    """
+
+    # initialize the one-hot sequence
+    one_hot_sequence = ''
+
+    # iterate through the sequence and one-hot encode it
+    for character in sequence:
+        if character == 'A':
+            one_hot_sequence += '1000'
+        elif character == 'C':
+            one_hot_sequence += '0100'
+        elif character == 'G':
+            one_hot_sequence += '0010'
+        elif character == 'T':
+            one_hot_sequence += '0001'
+        elif character == '0':
+            one_hot_sequence += '0000'
+        else:
+            raise ValueError('Invalid character in sequence')
+
+    return one_hot_sequence
+
+def parse_single_pool(file_path_filtered_reads : str, file_path_output : str, 
+                      protein_concentrations : list, number_protein_concentrations : int):
+    """
+    This function parses the filtered reads of one pool of the MIME Experiment.
+    It takes the filtered reads, adds a one-hot encoding of the protein
+    concentrations and one-hot encodes the reads. The reads are then written to
+    a file.
+
+    Args:
+        file_path_filtered_reads (str): file path to the filtered reads.
+            (filtered_reads.txt)
+        file_path_output (str): file path to the output file. (parsed_reads.txt)
+        protein_concentrations (list): list of protein concentrations. the 
+            length of the list is the number of rounds and the values are the
+            indices of the protein concentrations.
+        number_protein_concentrations (int): number of protein concentrations in
+            total.
+    """   
+    # read in the filtered reads line by line
+    with open(file_path_filtered_reads, 'r') as filtered_reads_file:
+        filtered_reads = filtered_reads_file.readlines()
+
+    # iterate through the filtered reads and parse them
+    for read in filtered_reads:
+        # get only part of the string that contains the read without the labels
+        sequence = read.split('_')[0]
+        # one-hot encode the read
+        one_hot_sequence = one_hot_encode(sequence)
+        # create the one-hot encoding of the protein concentrations
+        protein_concentration_identifier = ''
+        for protein_concentration in protein_concentrations:
+            protein_concentration_identifier += '0' * protein_concentration + '1' + '0' * (number_protein_concentrations - protein_concentration - 1)
+        # get labels
+        bound_label = read.split('_')[-3]
+        length_label = read.split('_')[-2]
+        number_mutations_label = read.split('_')[-1]
+        # create output read
+        output_read = protein_concentration_identifier + one_hot_sequence + '_' + bound_label + '_' + length_label + '_' + number_mutations_label
+        # write the read to the output file
+        with open(file_path_output, 'a') as output_file:
+            output_file.write(output_read)
+
+    return None
+
+def concatenate_pools(file_path_pools : str, file_path_output : str, number_protein_concentrations = 4, number_rounds = 2):
+    """
+    This function concatenates the filtered reads of all pools of the MIME
+    Experiment. It takes the filtered reads, adds a one-hot encoding of the
+    protein concentrations and one-hot encodes the reads. The reads of all pools
+    are then written to a file. The file subsequently gets shuffled.
+
+    The file path of the pools is assumed to be a folder containing all the
+    filtered reads of the pools in the following format (for the case of 2 
+    rounds with 4 protein concentrations):
+
+    1_1_filtered_reads.txt
+    1_2_filtered_reads.txt
+    1_3_filtered_reads.txt
+    1_4_filtered_reads.txt
+    2_1_filtered_reads.txt
+    2_2_filtered_reads.txt
+    ...
+
+    Args:
+        file_path_pools (str): file path to the folder containing the filtered
+            reads of all pools.
+        file_path_output (str): file path to the output file.
+        number_protein_concentrations (int): number of protein concentrations in
+            total.
+        number_rounds (int): number of rounds.
+    """
+    # assert that number_rounds is either 1 or 2
+    assert number_rounds == 1 or number_rounds == 2, 'number_rounds must be either 1 or 2'
+
+    # case number_rounds == 1
+    for protein_concentration in range(1, number_protein_concentrations + 1):
+        #TO DO
+        pass
+    
+    # case number_rounds == 2
+    for protein_concentration_1 in range(1, number_protein_concentrations + 1):
+        for protein_concentration_2 in range(1, number_protein_concentrations + 1):
+            #TO DO
+            pass
+
+    
 
 # test the functions
 
@@ -139,5 +257,6 @@ path_to_bound = './src/expFiles/fragmentedDataBound.txt'
 path_to_unbound = './src/expFiles/fragmentedDataUnbound.txt'
 path_to_wildtype = './src/expFiles/wildtype.txt'
 
-label_reads(path_to_bound, path_to_unbound, path_to_wildtype, './src/expFiles/labeled_reads.txt')
-filter_reads('./src/expFiles/labeled_reads.txt', './src/expFiles/', 10)
+#label_reads(path_to_bound, path_to_unbound, path_to_wildtype, './src/expFiles/labeled_reads.txt')
+#filter_reads('./src/expFiles/labeled_reads.txt', './src/expFiles/', 10)
+#parse_single_pool('./src/expFiles/filtered_reads.txt', './src/expFiles/parsed_reads.txt', [0,2], 4)
