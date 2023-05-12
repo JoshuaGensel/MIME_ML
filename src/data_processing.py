@@ -230,7 +230,7 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
     Args:
         file_path_pools (str): file path to the folder containing the filtered
             reads of all pools.
-        file_path_output (str): file path to the output file.
+        file_path_output (str): file path to the output directory.
         number_protein_concentrations (int): number of protein concentrations in
             total.
         number_rounds (int): number of rounds.
@@ -239,16 +239,49 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
     assert number_rounds == 1 or number_rounds == 2, 'number_rounds must be either 1 or 2'
 
     # case number_rounds == 1
-    for protein_concentration in range(1, number_protein_concentrations + 1):
-        #TO DO
-        pass
+    if number_rounds == 1:
+        for protein_concentration in range(number_protein_concentrations):
+            # parse the reads of the pool
+            parse_single_pool(file_path_pools + str(protein_concentration + 1) + '_filtered_reads.txt', 
+                              file_path_output + str(protein_concentration + 1) + '_parsed_reads.txt', 
+                              [protein_concentration], number_protein_concentrations)
+            # open parsed reads file
+            with open(file_path_output + str(protein_concentration + 1) + '_parsed_reads.txt', 'r') as parsed_reads_file:
+                parsed_reads = parsed_reads_file.readlines()
+            # write the parsed reads to the output file
+            with open(file_path_output + 'parsed_reads.txt', 'a') as output_file:
+                for read in parsed_reads:
+                    output_file.write(read)
+            # delete the parsed reads file
+            os.remove(file_path_output + str(protein_concentration + 1) + '_parsed_reads.txt')
+
     
     # case number_rounds == 2
-    for protein_concentration_1 in range(1, number_protein_concentrations + 1):
-        for protein_concentration_2 in range(1, number_protein_concentrations + 1):
-            #TO DO
-            pass
+    if number_rounds == 2:
+        for protein_concentration_1 in range(number_protein_concentrations):
+            for protein_concentration_2 in range(number_protein_concentrations):
+                # parse the reads of the pool
+                parse_single_pool(file_path_pools + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_filtered_reads.txt', 
+                                  file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_parsed_reads.txt', 
+                                  [protein_concentration_1, protein_concentration_2], number_protein_concentrations)
+                # open parsed reads file
+                with open(file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_parsed_reads.txt', 'r') as parsed_reads_file:
+                    parsed_reads = parsed_reads_file.readlines()
+                # write the parsed reads to the output file
+                with open(file_path_output + 'parsed_reads.txt', 'a') as output_file:
+                    for read in parsed_reads:
+                        output_file.write(read)
+                # delete the parsed reads file
+                os.remove(file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_parsed_reads.txt')
+                
 
+    # shuffle the output file
+    with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+        parsed_reads = output_file.readlines()
+    random.shuffle(parsed_reads)
+    with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+        for read in parsed_reads:
+            output_file.write(read)
     
 
 # test the functions
@@ -260,3 +293,4 @@ path_to_wildtype = './src/expFiles/wildtype.txt'
 #label_reads(path_to_bound, path_to_unbound, path_to_wildtype, './src/expFiles/labeled_reads.txt')
 #filter_reads('./src/expFiles/labeled_reads.txt', './src/expFiles/', 10)
 #parse_single_pool('./src/expFiles/filtered_reads.txt', './src/expFiles/parsed_reads.txt', [0,2], 4)
+concatenate_pools('./src/expFiles/pooled/', './src/expFiles/', 2, 2)
