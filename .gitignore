@@ -5,4 +5,4 @@ __pycache__
 *.sam
 *.tar.gz
 *.pth
-src/simFiles/archive
+src/simulation_files/archive

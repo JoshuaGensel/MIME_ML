@@ -3,6 +3,99 @@ from tqdm import tqdm
 import os 
 import random
 
+def align_reads_simulator(file_path_reads: str, file_path_output: str, splitting_probabality: float, read_length: int, seed: int):
+    """
+    This function takes the full sequences that are output by the MIME Simulator
+    and creates aligned reads of the fragments of this sequence. First the full 
+    sequences from the simulator are split into fragments. The probability of 
+    a split happening at a given position is given by the splitting_probability.
+    The fragments are then written in from both sides until the read_length is
+    reached. Missing positions that are not covered by the fragments or that are
+    out of range are filled with zeros. The aligned reads are written to the 
+    output file (file_path_output).
+
+    Args:
+        file_path_reads (str): file path to the full sequences output by the 
+            MIME Simulator (sequences/7.txt or sequences/8.txt)
+        file_path_output (str): file path to the output file 
+            (aligned_reads_bound.txt or aligned_reads_unbound.txt)
+        splitting_probability (float): probability of a split happening at a
+            given position
+        read_length (int): maximum length that a fragment can be read in (from
+            each side)
+        seed (int): seed for the random number generator
+    """
+
+    # set the seed
+    random.seed(seed)
+
+    # read in the full sequences line by line
+    with open(file_path_reads, 'r') as reads_file:
+        reads = reads_file.readlines()
+        # remove the new line character at the end of each line
+        reads = [read.strip() for read in reads]
+        
+    # set sequence length
+    sequence_length = len(reads[0].strip())
+
+    # iterate through the full sequences
+    for read in reads:
+
+        #randomize indices to split the sequence on based on the splitting probability
+        splitting_indices = []
+        for i in range(sequence_length):
+            if random.random() < splitting_probabality:
+                splitting_indices.append(i)
+
+        # split the sequence into fragments
+        fragments = []
+        start = 0
+        for index in splitting_indices:
+            fragments.append(read[start:index])
+            start = index
+        fragments.append(read[start:])
+        
+        # set position that are more then read_length away from the start or end to zero
+        read_fragments = []
+        for i in range(len(fragments)):
+            # skip fragments that are shorter than double read_length
+            if len(fragments[i]) < 2*read_length:
+                read_fragments.append(fragments[i])
+            else:
+                read_fragment = fragments[i][:read_length] + '0'*(len(fragments[i]) - 2*read_length) + fragments[i][-read_length:]
+                read_fragments.append(read_fragment)
+
+        aligned_fragments = []
+        # pad the read fragments with zeros before and after their cutting indices
+        for i in range(len(read_fragments)):
+            
+            # pad first fragment only with zeros at the end
+            if i == 0:
+                aligned_fragment = read_fragments[i] + '0'*(sequence_length - len(read_fragments[i]))
+            # pad last fragment only with zeros at the beginning
+            elif i == len(read_fragments) - 1:
+                aligned_fragment = '0'*(sequence_length - len(read_fragments[i])) + read_fragments[i]
+            # pad all other fragments with zeros at the beginning and end according to their splitting indices
+            else:
+                # get the cutting indices
+                left_index = splitting_indices[i-1]
+                right_index = splitting_indices[i]
+                aligned_fragment = '0'*(left_index) + read_fragments[i] + '0'*(sequence_length - right_index)
+            # if aligned fragment is not all '0' add it to the list of aligned fragments
+            if aligned_fragment != '0'*sequence_length:
+                aligned_fragments.append(aligned_fragment)
+
+        # write the aligned fragments to the output file
+        with open(file_path_output, 'a') as output_file:
+            for aligned_fragment in aligned_fragments:
+                output_file.write(aligned_fragment + '\n')
+
+    return None
+
+align_reads_simulator('./data/test_files/7.txt', './data/test_files/aligned_reads_bound.txt', 1/20, 7, 42)
+align_reads_simulator('./data/test_files/8.txt', './data/test_files/aligned_reads_unbound.txt', 1/20, 7, 42)
+
+
 def label_reads(file_path_bound: str, file_path_unbound: str, file_path_wildtype: str, 
                 file_path_output: str):
     """
@@ -46,13 +139,12 @@ def label_reads(file_path_bound: str, file_path_unbound: str, file_path_wildtype
         read = read.strip() + '_1'
         # get position of the first non-zero character
         positions = [read.find('A'), read.find('C'), read.find('G'), read.find('T')]
-        if -1 in positions: 
-            positions.remove(-1)
-        start_read = min(positions) 
+        #remove -1 from positions
+        positions = tuple(position for position in positions if position != -1)
+        start_read = min(positions)
         # get position of the last non-zero character
         positions = [read.rfind('A'), read.rfind('C'), read.rfind('G'), read.rfind('T')]
-        if -1 in positions:
-            positions.remove(-1)
+        positions = tuple(position for position in positions if position != -1)
         end_read = max(positions)
         # add the length label
         read = read + '_' + str(end_read - start_read + 1)
@@ -77,13 +169,12 @@ def label_reads(file_path_bound: str, file_path_unbound: str, file_path_wildtype
         read = read.strip() + '_0'
         # get position of the first non-zero character
         positions = [read.find('A'), read.find('C'), read.find('G'), read.find('T')]
-        if -1 in positions: 
-            positions.remove(-1)
+        #remove -1 from positions
+        positions = tuple(position for position in positions if position != -1)
         start_read = min(positions)
         # get position of the last non-zero character
         positions = [read.rfind('A'), read.rfind('C'), read.rfind('G'), read.rfind('T')]
-        if -1 in positions:
-            positions.remove(-1)
+        positions = tuple(position for position in positions if position != -1)
         end_read = max(positions)
         # add the length label
         read = read + '_' + str(end_read - start_read + 1)
@@ -100,6 +191,12 @@ def label_reads(file_path_bound: str, file_path_unbound: str, file_path_wildtype
             output_file.write(read)
 
     return None
+
+path_to_bound = './data/test_files/aligned_reads_bound.txt'
+path_to_unbound = './data/test_files/aligned_reads_unbound.txt'
+path_to_wildtype = './data/test_files/wildtype.txt'
+
+label_reads(path_to_bound, path_to_unbound, path_to_wildtype, './data/test_files/labeled_reads.txt')
 
 def filter_reads(file_path_labeled_reads: str, file_path_output: str, min_length: int):
     """
@@ -132,6 +229,8 @@ def filter_reads(file_path_labeled_reads: str, file_path_output: str, min_length
             output_file.write(read)
 
     return None
+
+filter_reads('./data/test_files/labeled_reads.txt', './data/test_files/', 10)
 
 def one_hot_encode(sequence : str):
     """
@@ -208,6 +307,9 @@ def parse_single_pool(file_path_filtered_reads : str, file_path_output : str,
 
     return None
 
+parse_single_pool('./data/test_files/filtered_reads.txt', './data/test_files/parsed_reads.txt', [0,2], 4)
+
+
 def concatenate_pools(file_path_pools : str, file_path_output : str, number_protein_concentrations = 4, number_rounds = 2):
     """
     This function concatenates the filtered reads of all pools of the MIME
@@ -283,14 +385,7 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
         for read in parsed_reads:
             output_file.write(read)
     
+    return None
 
-# test the functions
 
-path_to_bound = './src/expFiles/fragmentedDataBound.txt'
-path_to_unbound = './src/expFiles/fragmentedDataUnbound.txt'
-path_to_wildtype = './src/expFiles/wildtype.txt'
-
-#label_reads(path_to_bound, path_to_unbound, path_to_wildtype, './src/expFiles/labeled_reads.txt')
-#filter_reads('./src/expFiles/labeled_reads.txt', './src/expFiles/', 10)
-#parse_single_pool('./src/expFiles/filtered_reads.txt', './src/expFiles/parsed_reads.txt', [0,2], 4)
-concatenate_pools('./src/expFiles/pooled/', './src/expFiles/', 2, 2)
+concatenate_pools('./data/test_files/pooled/', './data/test_files/', 2, 2)
