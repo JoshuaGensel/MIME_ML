@@ -307,7 +307,7 @@ def parse_single_pool(file_path_filtered_reads : str, file_path_output : str,
 
     return None
 
-parse_single_pool('./data/test_files/filtered_reads.txt', './data/test_files/parsed_reads.txt', [0,2], 4)
+#parse_single_pool('./data/test_files/filtered_reads.txt', './data/test_files/parsed_reads.txt', [0,2], 4)
 
 
 def concatenate_pools(file_path_pools : str, file_path_output : str, number_protein_concentrations = 4, number_rounds = 2):
@@ -362,6 +362,7 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
     if number_rounds == 2:
         for protein_concentration_1 in range(number_protein_concentrations):
             for protein_concentration_2 in range(number_protein_concentrations):
+                print(protein_concentration_1+1, protein_concentration_2+1)
                 # parse the reads of the pool
                 parse_single_pool(file_path_pools + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_filtered_reads.txt', 
                                   file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_parsed_reads.txt', 
@@ -377,13 +378,13 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
                 os.remove(file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_parsed_reads.txt')
                 
 
-    # shuffle the output file
-    with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
-        parsed_reads = output_file.readlines()
-    random.shuffle(parsed_reads)
-    with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
-        for read in parsed_reads:
-            output_file.write(read)
+    # # shuffle the output file
+    # with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+    #     parsed_reads = output_file.readlines()
+    # random.shuffle(parsed_reads)
+    # with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+    #     for read in parsed_reads:
+    #         output_file.write(read)
     
     return None
 
