@@ -1,6 +1,7 @@
 .vscode
 simTest
-data/simData/singleMIME
+data/simulation_data
+data/experimental_data
 __pycache__
 *.sam
 *.tar.gz

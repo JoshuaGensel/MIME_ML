@@ -1,3 +1,4 @@
+import shutil
 import numpy as np
 from tqdm import tqdm
 import os 
@@ -357,12 +358,28 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
             # delete the parsed reads file
             os.remove(file_path_output + str(protein_concentration + 1) + '_parsed_reads.txt')
 
+            # do the same for the double_mutant_reads
+            # parse the reads of the pool
+            parse_single_pool(file_path_pools + str(protein_concentration + 1) + '_double_mutant_reads.txt', 
+                              file_path_output + str(protein_concentration + 1) + '_dm_parsed_reads.txt', 
+                              [protein_concentration], number_protein_concentrations)
+            # open parsed reads file
+            with open(file_path_output + str(protein_concentration + 1) + '_dm_parsed_reads.txt', 'r') as parsed_reads_file:
+                parsed_reads = parsed_reads_file.readlines()
+            # write the parsed reads to the output file
+            with open(file_path_output + 'dm_parsed_reads.txt', 'a') as output_file:
+                for read in parsed_reads:
+                    output_file.write(read)
+            # delete the parsed reads file
+            os.remove(file_path_output + str(protein_concentration + 1) + '_dm_parsed_reads.txt')
+
+
     
     # case number_rounds == 2
     if number_rounds == 2:
         for protein_concentration_1 in range(number_protein_concentrations):
             for protein_concentration_2 in range(number_protein_concentrations):
-                print(protein_concentration_1+1, protein_concentration_2+1)
+                
                 # parse the reads of the pool
                 parse_single_pool(file_path_pools + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_filtered_reads.txt', 
                                   file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_parsed_reads.txt', 
@@ -376,17 +393,166 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
                         output_file.write(read)
                 # delete the parsed reads file
                 os.remove(file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_parsed_reads.txt')
+
+                # do the same for the double_mutant_reads
+                # parse the reads of the pool
+                parse_single_pool(file_path_pools + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_double_mutant_reads.txt',
+                                    file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_dm_parsed_reads.txt',
+                                    [protein_concentration_1, protein_concentration_2], number_protein_concentrations)
+                # open parsed reads file
+                with open(file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_dm_parsed_reads.txt', 'r') as parsed_reads_file:
+                    parsed_reads = parsed_reads_file.readlines()
+                # write the parsed reads to the output file
+                with open(file_path_output + 'dm_parsed_reads.txt', 'a') as output_file:
+                    for read in parsed_reads:
+                        output_file.write(read)
+                # delete the parsed reads file
+                os.remove(file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_dm_parsed_reads.txt')
                 
 
-    # # shuffle the output file
-    # with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
-    #     parsed_reads = output_file.readlines()
-    # random.shuffle(parsed_reads)
-    # with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
-    #     for read in parsed_reads:
-    #         output_file.write(read)
+    # shuffle the output file
+    with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+        parsed_reads = output_file.readlines()
+    random.shuffle(parsed_reads)
+    with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+        for read in parsed_reads:
+            output_file.write(read)
+
+    # shuffle the output file
+    with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
+        parsed_reads = output_file.readlines()
+    random.shuffle(parsed_reads)
+    with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
+        for read in parsed_reads:
+            output_file.write(read)
     
     return None
 
+# concatenate_pools('./data/test_files/pooled/', './data/test_files/', 2, 2)
 
-concatenate_pools('./data/test_files/pooled/', './data/test_files/', 2, 2)
+def parse_simulation(file_path_simulation_output : str, file_path_output : str, 
+                     protein_concentrations : list, number_rounds = 2,
+                     min_length = 30, splitting_probability : float  = 3/100, read_length = 23,
+                     seed = 42):
+    """
+    This function parses the output of the MIME simulator. It takes the 
+    simulators output as produced by the sim_automation.py script and outputs 
+    training data sets for the MIME model as well as the distribution of the 
+    read lengths and mutations per read. The output files are written to the
+    specified file path.
+
+    Args:
+        file_path_simulation_output (str): file path to the output directory of 
+            the MIME simulator (from sim_automation.py).
+        file_path_output (str): file path to the output directory.
+        protein_concentrations (list): list of protein concentrations used in
+            the simulation.
+        number_rounds (int, optional): number of rounds performed. Defaults to 
+            2.
+        min_length (int, optional): the minimum read length to be kept 
+            (everything lower will be filtered out). Defaults to 30.
+        splitting_probability (float, optional): probability for a mutation at 
+            a given position. Defaults to 3/100.
+        read_length (int, optional): the length with the fragments are read in 
+            (from each side). Defaults to 23.
+        seed (int, optional): seed for the random number generator (used for 
+            random fragmentation). Defaults to 42.
+    """
+
+    # assert that number_rounds is either 1 or 2
+    assert number_rounds == 1 or number_rounds == 2, 'number_rounds must be either 1 or 2'
+
+    # case number_rounds == 1
+    if number_rounds == 1:
+
+        #iterate over all protein concentrations
+        for i in tqdm(range(len(protein_concentrations))):
+
+            protein_concentration = protein_concentrations[i]
+            
+            # set file path for the current protein concentration
+            file_path = file_path_simulation_output + 'prot' + str(protein_concentration) + '/sequences/'
+
+            # align the reads
+            align_reads_simulator(
+                file_path_reads=file_path + '3.txt',
+                file_path_output='./data/cache/aligned_reads_bound.txt',
+                splitting_probabality=splitting_probability,
+                read_length=read_length,
+                seed=seed
+            )
+            align_reads_simulator(
+                file_path_reads=file_path + '4.txt',
+                file_path_output='./data/cache/aligned_reads_unbound.txt',
+                splitting_probabality=splitting_probability,
+                read_length=read_length,
+                seed=seed
+            )
+
+            # label the reads
+            label_reads(
+                file_path_bound='./data/cache/aligned_reads_bound.txt',
+                file_path_unbound='./data/cache/aligned_reads_unbound.txt',
+                file_path_wildtype='./data/simulation_data/wildtype.txt',
+                file_path_output='./data/cache/labelled_reads.txt'
+            )
+
+            # delete the aligned reads
+            os.remove('./data/cache/aligned_reads_bound.txt')
+            os.remove('./data/cache/aligned_reads_unbound.txt')
+
+            # filter the reads
+            filter_reads(
+                file_path_labeled_reads='./data/cache/labelled_reads.txt',
+                file_path_output='./data/cache/pooled/',
+                min_length=min_length
+            )
+
+            # delete the labelled reads
+            os.remove('./data/cache/labelled_reads.txt')
+
+            # rename filtered_reads.txt and double_mutant_reads.txt according to the protein concentration
+            os.rename('./data/cache/pooled/filtered_reads.txt', './data/cache/pooled/' + str(i+1) + '_filtered_reads.txt')
+            os.rename('./data/cache/pooled/double_mutant_reads.txt', './data/cache/pooled/' + str(i+1) + '_double_mutant_reads.txt')
+
+        # concatenate the pools\
+
+        concatenate_pools(
+            file_path_pools='./data/cache/pooled/',
+            file_path_output=file_path_output,
+            number_protein_concentrations=len(protein_concentrations),
+            number_rounds=number_rounds
+        )
+
+        # shuffle parsed_reads.txt and dm_parsed_reads.txt
+        with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+            parsed_reads = output_file.readlines()
+        random.shuffle(parsed_reads)
+        with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+            for read in parsed_reads:
+                output_file.write(read)
+
+        with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
+            parsed_reads = output_file.readlines()
+        random.shuffle(parsed_reads)
+        with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
+            for read in parsed_reads:
+                output_file.write(read)
+
+        # delete the pools
+        shutil.rmtree('./data/cache/pooled/')
+
+    # case number_rounds == 2
+    # TODO: implement this case        
+    return None
+
+parse_simulation(
+    file_path_simulation_output='./data/simulation_data/experimental_conditions/',
+    file_path_output='./data/simulation_data/',
+    protein_concentrations=[1,6,15,30],
+    number_rounds=1,
+    min_length=30,
+    splitting_probability=3/100,
+    read_length=23,
+    seed=42
+)
