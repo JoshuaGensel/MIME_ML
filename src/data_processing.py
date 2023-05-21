@@ -503,21 +503,30 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
 
             # get the read lengths and the number of mutations per read
             read_lengths = []
-            mutations_per_read = []
+            mutations_per_read_bound = []
+            mutations_per_read_unbound = []
             for read in labelled_reads:
                 # labels are separated by an underscore
                 labels = read.split('_')
                 # the second label is the read length
                 read_lengths.append(int(labels[2]))
                 # the third label is the number of mutations
-                mutations_per_read.append(int(labels[3]))
-
+                if labels[1] == '1':
+                    mutations_per_read_bound.append(int(labels[3]))
+                elif labels[1] == '0':
+                    mutations_per_read_unbound.append(int(labels[3]))
+                else:
+                    raise ValueError('Invalid bound/unbound label')
+                
             # write the read lengths and the number of mutations per read to the output directory
             with open(file_path_output + str(i+1) + '_read_lengths.txt', 'w') as output_file:
                 for read_length in read_lengths:
                     output_file.write(str(read_length) + ' ')
-            with open(file_path_output + str(i+1) + '_mutations_per_read.txt', 'w') as output_file:
-                for mutations in mutations_per_read:
+            with open(file_path_output + str(i+1) + '_mpr_bound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_bound:
+                    output_file.write(str(mutations) + ' ')
+            with open(file_path_output + str(i+1) + '_mpr_unbound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_unbound:
                     output_file.write(str(mutations) + ' ')
 
             # delete the aligned reads
@@ -535,16 +544,25 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
             with open('./data/cache/pooled/filtered_reads.txt', 'r') as filtered_reads_file:
                 filtered_reads = filtered_reads_file.readlines()
 
-            mutations_per_read = []
+            mutations_per_read_bound = []
+            mutations_per_read_unbound = []
             for read in filtered_reads:
                 # labels are separated by an underscore
                 labels = read.split('_')
                 # the third label is the number of mutations
-                mutations_per_read.append(int(labels[3]))
+                if labels[1] == '1':
+                    mutations_per_read_bound.append(int(labels[3]))
+                elif labels[1] == '0':
+                    mutations_per_read_unbound.append(int(labels[3]))
+                else:
+                    raise ValueError('Invalid bound/unbound label')
 
             # write the number of mutations per read to the output directory
-            with open(file_path_output + str(i+1) + '_mutations_per_read_filtered.txt', 'w') as output_file:
-                for mutations in mutations_per_read:
+            with open(file_path_output + str(i+1) + '_mprf_bound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_bound:
+                    output_file.write(str(mutations) + ' ')
+            with open(file_path_output + str(i+1) + '_mprf_unbound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_unbound:
                     output_file.write(str(mutations) + ' ')
 
             # delete the labelled reads
@@ -628,21 +646,30 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
 
                 # get the read lengths and the number of mutations per read
                 read_lengths = []
-                mutations_per_read = []
+                mutations_per_read_bound = []
+                mutations_per_read_unbound = []
                 for read in labelled_reads:
                     # labels are separated by an underscore
                     labels = read.split('_')
                     # the second label is the read length
                     read_lengths.append(int(labels[2]))
                     # the third label is the number of mutations
-                    mutations_per_read.append(int(labels[3]))
+                    if labels[1] == '1':
+                        mutations_per_read_bound.append(int(labels[3]))
+                    elif labels[1] == '0':
+                        mutations_per_read_unbound.append(int(labels[3]))
+                    else:
+                        raise ValueError('Invalid bound/unbound label')
 
                 # write the read lengths and the number of mutations per read to the output directory
                 with open(file_path_output + str(i+1) + '_' + str(j+1) + '_read_lengths.txt', 'w') as output_file:
                     for read_length in read_lengths:
                         output_file.write(str(read_length) + ' ')
-                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mutations_per_read.txt', 'w') as output_file:
-                    for mutations in mutations_per_read:
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mpr_bound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_bound:
+                        output_file.write(str(mutations) + ' ')
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mpr_unbound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_unbound:
                         output_file.write(str(mutations) + ' ')
 
                 # delete the aligned reads
@@ -660,16 +687,25 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
                 with open('./data/cache/pooled/filtered_reads.txt', 'r') as filtered_reads_file:
                     filtered_reads = filtered_reads_file.readlines()
 
-                mutations_per_read = []
+                mutations_per_read_bound = []
+                mutations_per_read_unbound = []
                 for read in filtered_reads:
                     # labels are separated by an underscore
                     labels = read.split('_')
                     # the third label is the number of mutations
-                    mutations_per_read.append(int(labels[3]))
+                    if labels[1] == '1':
+                        mutations_per_read_bound.append(int(labels[3]))
+                    elif labels[1] == '0':
+                        mutations_per_read_unbound.append(int(labels[3]))
+                    else:
+                        raise ValueError('Invalid bound/unbound label')
 
                 # write the number of mutations per read to the output directory
-                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mutations_per_read_filtered.txt', 'w') as output_file:
-                    for mutations in mutations_per_read:
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mprf_bound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_bound:
+                        output_file.write(str(mutations) + ' ')
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mprf_unbound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_unbound:
                         output_file.write(str(mutations) + ' ')
 
                 # delete the labelled reads
