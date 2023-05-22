@@ -31,14 +31,36 @@ class MIMENet(nn.Module):
 #custom train loader
 class CustomTrainSet(torch.utils.data.Dataset):
     #read data from text file
-    #split data into input all columns except last one and output last column
+    #training examples and labels are separated by an underscore
+    #training examples are not separated
     def __init__(self, path):
-        #max rows to read should be 100000
-        data = np.loadtxt(path, max_rows=10000000)
-        self.x = torch.from_numpy(data[:, :-1]).float()
-        #ensure shape is (n, 1)
-        self.y = torch.from_numpy(data[:, -1]).float().view(-1, 1)
-        self.len = data.shape[0]
+        #read file
+        file = open(path, 'r')
+        #read lines
+        lines = file.readlines()
+        #close file
+        file.close()
+        #initialize x and y
+        self.x = []
+        self.y = []
+        #loop through lines
+        for line in lines:
+            #split line
+            line = line.split('_')
+            #append training example to x
+            # inputs are not separated by spaces
+            self.x.append([float(i) for i in line[0]])
+            #append label to y
+            self.y.append([float(line[1])])
+        #convert to numpy arrays
+        self.x = np.array(self.x)
+        self.y = np.array(self.y)
+        #convert to torch tensors
+        self.x = torch.from_numpy(self.x).float()
+        # ensure shape is (n, 1) instead of (n,)
+        self.y = torch.from_numpy(self.y).float().view(-1, 1)
+        #get length
+        self.len = len(self.x)
 
     def __getitem__(self, index):
         return self.x[index], self.y[index]
@@ -59,7 +81,7 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l1, hidden_si
     train_loader = torch.utils.data.DataLoader(dataset=CustomTrainSet(training_path), batch_size=batch_size, shuffle=True)
 
     #get input size
-    input_size = len(open(training_path).readline().split(' ')) - 1
+    input_size = len(open(training_path).readline().split('_')[0])
 
     #get output size
     output_size = 1
@@ -94,12 +116,12 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l1, hidden_si
     correlation_history_kds = []
 
     #training loop
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
 
-        print("Epoch: " + str(epoch+1) + "/" + str(epochs))
+        #  print("Epoch: " + str(epoch+1) + "/" + str(epochs))
 
         #training loop
-        for i, (x, y) in tqdm(enumerate(train_loader), total=len(train_loader)):
+        for i, (x, y) in enumerate(train_loader):
             #cast to device
             x = x.to(device)
             y = y.to(device)
@@ -179,7 +201,7 @@ def inferSingleProbabilities(model, numberFeatures):
     predictions = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for i in tqdm(range(8, numberFeatures)):
+    for i in range(8, numberFeatures):
         current_prediction_example = prediction_example.copy()
         current_prediction_example[i] = 1
         current_prediction_example = torch.from_numpy(current_prediction_example).float()
@@ -337,9 +359,9 @@ def inferEpistasis(model, numberFeatures):
                     single_mutant2 = prediction_example.copy()
                     double_mutant = prediction_example.copy()
                     wildtype_prediction_example = prediction_example.copy()
-                    single_mutant1[pos1] = 1
+                    single_mutant1[pos2] = 1
                     single_mutant1[pos1+mut1] = 1
-                    single_mutant2[pos2] = 1
+                    single_mutant2[pos1] = 1
                     single_mutant2[pos2+mut2] = 1
                     double_mutant[pos1+mut1] = 1
                     double_mutant[pos2+mut2] = 1
