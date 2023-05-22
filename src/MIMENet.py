@@ -70,7 +70,7 @@ class CustomTrainSet(torch.utils.data.Dataset):
 
 
 #training function
-def train(training_path, epochs, learning_rate, batch_size, lambda_l1, hidden_size_factor, bottleneck, kdPath = None):
+def train(training_path, epochs, learning_rate, batch_size, lambda_l1, hidden_size_factor, bottleneck, kd_path = None, model_path = None):
 
     #set device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -88,6 +88,10 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l1, hidden_si
 
     #initialize model
     model = MIMENet(input_size, hidden_size_factor, bottleneck, output_size)
+
+    # load model if path is given
+    if model_path is not None:
+        model.load_state_dict(torch.load(model_path))
 
     #move model to device
     model.to(device)
@@ -143,9 +147,9 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l1, hidden_si
         prediction_history.append(inferSingleProbabilities(model, input_size))
 
         #get kds
-        if kdPath is not None:
+        if kd_path is not None:
             # read in kd values
-            kds = np.loadtxt(kdPath)
+            kds = np.loadtxt(kd_path)
             #insert 1 at position 0 and then every 3rd position
             kds = np.insert(kds, 0, 1)
             kds = np.insert(kds, np.arange(4, len(kds), 3), 1)
@@ -174,12 +178,13 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l1, hidden_si
     }
 
     #if kd path is given, add kd correlation to history
-    if kdPath is not None:
+    if kd_path is not None:
         history['correlation_probs'] = correlation_history_probs
         history['correlation_kds'] = correlation_history_kds
 
     #return model and history
     return model, history
+
 
 
 def inferSingleProbabilities(model, numberFeatures):
