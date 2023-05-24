@@ -3,16 +3,16 @@ import os
 from random import *
 
 pathToSim = "~/projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "/mnt/d/data/MIME_data/simData/dmMIME/experimental_conditions"
+workingDirectory = "./data/simulation_data/experimental_conditions"
 
 #parameters
 L = 100
 q = 4
-M = 500000
+M = 2000000
 p_mut = 0.0225
 p_error = 0.0045
 p_effect = 0.5
-p_epistasis = 0.3
+p_epistasis = 0.5
 epi_restrict = 1
 proteinConcentrations = [1, 6, 15, 30]
 

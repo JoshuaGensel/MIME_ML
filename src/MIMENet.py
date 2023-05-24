@@ -37,33 +37,25 @@ class CustomTrainSet(torch.utils.data.Dataset):
         #read file
         file = open(path, 'r')
         #read lines
-        lines = file.readlines()
+        self.lines = file.readlines()
         #close file
         file.close()
-        #initialize x and y
-        self.x = []
-        self.y = []
-        #loop through lines
-        for line in lines:
-            #split line
-            line = line.split('_')
-            #append training example to x
-            # inputs are not separated by spaces
-            self.x.append([float(i) for i in line[0]])
-            #append label to y
-            self.y.append([float(line[1])])
-        #convert to numpy arrays
-        self.x = np.array(self.x)
-        self.y = np.array(self.y)
-        #convert to torch tensors
-        self.x = torch.from_numpy(self.x).float()
-        # ensure shape is (n, 1) instead of (n,)
-        self.y = torch.from_numpy(self.y).float().view(-1, 1)
         #get length
-        self.len = len(self.x)
+        self.len = len(self.lines)
+        print("Number of training examples: " + str(self.len))
 
     def __getitem__(self, index):
-        return self.x[index], self.y[index]
+        #split line
+        line = self.lines[index].split('_')
+        #append training example to x
+        # inputs are not separated by spaces
+        x = [float(i) for i in line[0]]
+        #append label to y
+        y = [float(line[1])]
+        #convert to torch tensors
+        x = torch.tensor(x)
+        y = torch.tensor(y)
+        return x, y
 
     def __len__(self):
         return self.len
