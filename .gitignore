@@ -2,6 +2,7 @@
 simTest
 data/simulation_data
 data/experimental_data
+data/test_simulation
 __pycache__
 *.sam
 *.tar.gz

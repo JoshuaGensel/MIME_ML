@@ -3,12 +3,12 @@ import os
 from random import *
 
 pathToSim = "~/projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "./data/simulation_data/experimental_conditions"
+workingDirectory = "./data/test_simulation"
 
 #parameters
 L = 100
 q = 4
-M = 2000000
+M = 100000
 p_mut = 0.0225
 p_error = 0.0045
 p_effect = 0.5

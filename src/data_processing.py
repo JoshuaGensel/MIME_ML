@@ -430,7 +430,7 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
 
 # concatenate_pools('./data/test_files/pooled/', './data/test_files/', 2, 2)
 
-def parse_simulation(file_path_simulation_output : str, file_path_output : str, 
+def parse_simulation(file_path_simulation_output : str, file_path_output : str, file_path_wildtype : str,
                      protein_concentrations : list, number_rounds = 2,
                      min_length = 30, splitting_probability : float  = 3/100, read_length = 23,
                      seed = 42):
@@ -445,6 +445,7 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
         file_path_simulation_output (str): file path to the output directory of 
             the MIME simulator (from sim_automation.py).
         file_path_output (str): file path to the output directory.
+        file_path_wildtype (str): file path to the wildtype sequence.
         protein_concentrations (list): list of protein concentrations used in
             the simulation.
         number_rounds (int, optional): number of rounds performed. Defaults to 
@@ -493,7 +494,7 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
             label_reads(
                 file_path_bound='./data/cache/aligned_reads_bound.txt',
                 file_path_unbound='./data/cache/aligned_reads_unbound.txt',
-                file_path_wildtype='./data/simulation_data/wildtype.txt',
+                file_path_wildtype=file_path_wildtype,
                 file_path_output='./data/cache/labelled_reads.txt'
             )
 
@@ -636,7 +637,7 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
                 label_reads(
                     file_path_bound='./data/cache/aligned_reads_bound.txt',
                     file_path_unbound='./data/cache/aligned_reads_unbound.txt',
-                    file_path_wildtype='./data/simulation_data/wildtype.txt',
+                    file_path_wildtype=file_path_wildtype,
                     file_path_output='./data/cache/labelled_reads.txt'
                 )
 
@@ -752,8 +753,9 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str,
 
 # parse first round of simulation data
 parse_simulation(
-    file_path_simulation_output='./data/simulation_data/experimental_conditions/',
-    file_path_output='./data/simulation_data/first_round/',
+    file_path_simulation_output='./data/test_simulation/',
+    file_path_output='./data/test_simulation/first_round/',
+    file_path_wildtype='./data/test_simulation/wildtype.txt',
     protein_concentrations=[1,6,15,30],
     number_rounds=1,
     min_length=30,
@@ -764,8 +766,9 @@ parse_simulation(
 
 # parse second round of simulation data
 parse_simulation(
-    file_path_simulation_output='./data/simulation_data/experimental_conditions/',
-    file_path_output='./data/simulation_data/second_round/',
+    file_path_simulation_output='./data/test_simulation/',
+    file_path_output='./data/test_simulation/second_round/',
+    file_path_wildtype='./data/test_simulation/wildtype.txt',
     protein_concentrations=[1,6,15,30],
     number_rounds=2,
     min_length=30,
