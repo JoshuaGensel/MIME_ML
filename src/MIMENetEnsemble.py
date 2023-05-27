@@ -146,11 +146,12 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
             train_history.append(loss.item())
 
         #prediction
-        prediction_array = np.array(inferSingleProbabilities(model, input_size))
+        prediction_array = np.array(inferSingleProbabilities(model, input_size, 100))
         # rows are predictions for one position
         # take mean of each row
         predictions = np.mean(prediction_array, axis=1)
-        prediction_history.append(predictions)
+        #append to prediction history as list
+        prediction_history.append(predictions.tolist())
 
         #get kds
         if kd_path is not None:
@@ -178,7 +179,7 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     #return model and history
     return model, history
 
-def inferSingleProbabilities(model, numberFeatures):
+def inferSingleProbabilities(model, numberFeatures, n : int):
     """
     Predicts binding probabilities for all possible mutations of a single position of the RNA sequence. For this, the model predicts
     synthetic data where only one mutation is present at a time. Ther order of the predictions is the following: position 1 wildtype,
@@ -197,18 +198,18 @@ def inferSingleProbabilities(model, numberFeatures):
     predictions = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for i in range(8, numberFeatures):
+    for i in tqdm(range(8, numberFeatures), leave=False):
         current_prediction_example = prediction_example.copy()
         current_prediction_example[i] = 1
         current_prediction_example = torch.from_numpy(current_prediction_example).float()
         current_prediction_example = current_prediction_example.to(device)
-        #predict with n = 100
-        prediction = model.predict(current_prediction_example, 100)
-        predictions.append(prediction)
+        with torch.no_grad():
+            prediction = model.predict(current_prediction_example, n)
+            predictions.append(prediction)
 
     return predictions
 
-def inferPairwiseProbabilities(model, numberFeatures):
+def inferPairwiseProbabilities(model, numberFeatures, n : int):
     """
     Predicts binding probabilities for all possible mutations of a pair of positions of the RNA sequence. For this, the model predicts
     synthetic data where two mutations are present at a time. Ther order of iterations through the possible mutations is the following:
@@ -238,12 +239,12 @@ def inferPairwiseProbabilities(model, numberFeatures):
                         current_prediction_example = current_prediction_example.to(device)
                         #output binding probability and append list for given protein concentration combination
                         with torch.no_grad():
-                            output = model(current_prediction_example)
-                            predictionsPairwise.append(output.item())
+                            prediction = model.predict(current_prediction_example, n)
+                            predictionsPairwise.append(prediction)
 
     return predictionsPairwise
 
-def inferSingleKds(model, numberFeatures):
+def inferSingleKds(model, numberFeatures, n : int):
     """
     Predicts Kd values for all possible mutations of a single position of the RNA sequence. For this, the model predicts
     synthetic data where only one mutation is present at a time. The order of the predictions is the following: position 1 mutation 1, 
@@ -271,18 +272,18 @@ def inferSingleKds(model, numberFeatures):
             mutation_prediction_example = torch.from_numpy(mutation_prediction_example).float()
             wildtype_prediction_example = wildtype_prediction_example.to(device)
             mutation_prediction_example = mutation_prediction_example.to(device)
-            #get output binding probabilities
             with torch.no_grad():
-                wildtype_output = model(wildtype_prediction_example)
-                mutation_output = model(mutation_prediction_example)
-                #calculate Kd and append list
-                wildtypeKd = 1/wildtype_output.item() - 1
-                mutationKd = 1/mutation_output.item() - 1
-                predictedKds.append(mutationKd/wildtypeKd)
+                wildtype_output = model.predict(wildtype_prediction_example, n)
+                mutation_output = model.predict(mutation_prediction_example, n)
+                #calculate Kds
+                wildtypeKd = 1/np.array(wildtype_output) - 1
+                mutationKd = 1/np.array(mutation_output) - 1
+                correctedKd = mutationKd / wildtypeKd
+                predictedKds.append(correctedKd.tolist())
 
     return predictedKds
 
-def inferPairwiseKds(model, numberFeatures):
+def inferPairwiseKds(model, numberFeatures, n : int):
     """
     Predicts Kd values for all possible mutations of a pair of positions of the RNA sequence. For this, the model predicts
     synthetic data where two mutations are present at a time. The order of iterations through the possible mutations is the following:
@@ -316,77 +317,12 @@ def inferPairwiseKds(model, numberFeatures):
                         mutation_prediction_example = mutation_prediction_example.to(device)
                         #get output binding probabilities
                         with torch.no_grad():
-                            wildtype_output = model(wildtype_prediction_example)
-                            mutation_output = model(mutation_prediction_example)
+                            wildtype_prediciton = model.predict(wildtype_prediction_example, n)
+                            mutation_prediciton = model.predict(mutation_prediction_example, n)
                             #calculate Kd and append list
-                            wildtypeKd = 1/wildtype_output.item() - 1
-                            mutationKd = 1/mutation_output.item() - 1
-                            predictedPairwiseKds.append(mutationKd/wildtypeKd)
+                            wildtypeKd = 1/np.array(wildtype_prediciton) - 1
+                            mutationKd = 1/np.array(mutation_prediciton) - 1
+                            correctedKd = mutationKd / wildtypeKd
+                            predictedPairwiseKds.append(correctedKd.tolist())
 
     return predictedPairwiseKds
-
-def inferEpistasis(model, numberFeatures):
-    """
-    Predicts epistasis values for all possible mutations of a pair of positions of the RNA sequence. For this, the model predicts
-    synthetic data where two mutations are present at a time and compares them to the predictions of the single mutations individually. 
-    The order of iterations through the possible mutations is the following: first position, second position, first mutation, second 
-    mutation. The epistasis is calculated via the formula: ((output_pos1-0.5)*(output_pos2-0.5))/(output_pair-0.5).
-
-    Args:
-        model (MIMENet.model): Model returned by train function of MIMENet used for prediction
-        numberFeatures (int): Number of features in the dataset. This is 4 times the number of postitions of the RNA (from one 
-        hot encoding) plus the number of protein concentrations times the number of rounds performed (4*2=8 for the classical MIME 
-        experiment).
-
-    Returns:
-        list: a list of binding probabilities for each mutation along the RNA sequence
-    """
-
-    epistasisPairwise = []
-
-    prediction_example = np.zeros(numberFeatures)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for pos1 in tqdm(range(8, numberFeatures,4)):
-        for pos2 in range(pos1+4, numberFeatures,4):
-            for mut1 in range(1,4):
-                for mut2 in range(1,4):
-                    single_mutant1 = prediction_example.copy()
-                    single_mutant2 = prediction_example.copy()
-                    double_mutant = prediction_example.copy()
-                    wildtype_prediction_example = prediction_example.copy()
-                    single_mutant1[pos2] = 1
-                    single_mutant1[pos1+mut1] = 1
-                    single_mutant2[pos1] = 1
-                    single_mutant2[pos2+mut2] = 1
-                    double_mutant[pos1+mut1] = 1
-                    double_mutant[pos2+mut2] = 1
-                    wildtype_prediction_example[pos1] = 1
-                    wildtype_prediction_example[pos2] = 1
-                    single_mutant1 = torch.from_numpy(single_mutant1).float()
-                    single_mutant2 = torch.from_numpy(single_mutant2).float()
-                    double_mutant = torch.from_numpy(double_mutant).float()
-                    wildtype_prediction_example = torch.from_numpy(wildtype_prediction_example).float()
-                    single_mutant1 = single_mutant1.to(device)
-                    single_mutant2 = single_mutant2.to(device)
-                    double_mutant = double_mutant.to(device)
-                    wildtype_prediction_example = wildtype_prediction_example.to(device)
-                    #get output binding probabilities
-                    with torch.no_grad():
-                        wildtype_output = model(wildtype_prediction_example)
-                        single_output1 = model(single_mutant1)
-                        single_output2 = model(single_mutant2)
-                        double_output = model(double_mutant)
-                        #calculate kds
-                        wildtypeKd = 1/wildtype_output.item() - 1
-                        singleKd1 = 1/single_output1.item() - 1
-                        singleKd2 = 1/single_output2.item() - 1
-                        doubleKd = 1/double_output.item() - 1
-                        #calculate relative Kd values
-                        Kd1 = singleKd1/wildtypeKd
-                        Kd2 = singleKd2/wildtypeKd
-                        Kd12 = doubleKd/wildtypeKd
-                        #calculate epistasis
-                        epistasis = ((Kd1)*(Kd2))/(Kd12)
-                        epistasisPairwise.append(epistasis)
-
-    return epistasisPairwise
