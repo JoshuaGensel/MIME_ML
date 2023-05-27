@@ -8,3 +8,4 @@ __pycache__
 *.tar.gz
 *.pth
 src/simulation_files/archive
+pair_kd_pred.txt
