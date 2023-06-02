@@ -3,18 +3,18 @@ import os
 from random import *
 
 pathToSim = "~/projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "./data/test_simulation"
+workingDirectory = "./data/simulation_data/experimental_conditions"
 
 #parameters
 L = 100
 q = 4
-M = 100000
+M = 2000000
 p_mut = 0.0225
 p_error = 0.0045
 p_effect = 0.5
 p_epistasis = 0.5
 epi_restrict = 1
-proteinConcentrations = [1, 6, 15, 30]
+proteinConcentrations = [.1,1,10]
 
 #create output directories
 os.mkdir(workingDirectory)

@@ -198,7 +198,7 @@ def inferSingleProbabilities(model, numberFeatures, n : int):
     predictions = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for i in tqdm(range(8, numberFeatures), leave=False):
+    for i in tqdm(range(6, numberFeatures), leave=False):
         current_prediction_example = prediction_example.copy()
         current_prediction_example[i] = 1
         current_prediction_example = torch.from_numpy(current_prediction_example).float()
@@ -228,7 +228,7 @@ def inferPairwiseProbabilities(model, numberFeatures, n : int):
     predictionsPairwise = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for i in tqdm(range(8, numberFeatures,4)):
+    for i in tqdm(range(6, numberFeatures,4)):
         for j in range(i+4, numberFeatures,4):
             for k in range(1,4):
                 for l in range(1,4):
@@ -262,7 +262,7 @@ def inferSingleKds(model, numberFeatures, n : int):
     predictedKds = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for pos in tqdm(range(8, numberFeatures, 4)):
+    for pos in tqdm(range(6, numberFeatures, 4)):
         for mut in range(1,4):
             wildtype_prediction_example = prediction_example.copy()
             mutation_prediction_example = prediction_example.copy()
@@ -301,7 +301,7 @@ def inferPairwiseKds(model, numberFeatures, n : int):
     predictedPairwiseKds = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for pos1 in tqdm(range(8, numberFeatures,4)):
+    for pos1 in tqdm(range(6, numberFeatures,4)):
         for pos2 in range(pos1+4, numberFeatures,4):
             for mut1 in range(1,4):
                 for mut2 in range(1,4):

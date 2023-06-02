@@ -753,10 +753,10 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str, 
 
 # parse first round of simulation data
 parse_simulation(
-    file_path_simulation_output='./data/test_simulation/',
-    file_path_output='./data/test_simulation/first_round/',
-    file_path_wildtype='./data/test_simulation/wildtype.txt',
-    protein_concentrations=[1,6,15,30],
+    file_path_simulation_output='./data/simulation_data/experimental_conditions/',
+    file_path_output='./data/simulation_data/experimental_conditions/first_round/',
+    file_path_wildtype='./data/simulation_data/wildtype.txt',
+    protein_concentrations=[.1, 1, 10],
     number_rounds=1,
     min_length=30,
     splitting_probability=3/100,
@@ -766,10 +766,10 @@ parse_simulation(
 
 # parse second round of simulation data
 parse_simulation(
-    file_path_simulation_output='./data/test_simulation/',
-    file_path_output='./data/test_simulation/second_round/',
-    file_path_wildtype='./data/test_simulation/wildtype.txt',
-    protein_concentrations=[1,6,15,30],
+    file_path_simulation_output='./data/simulation_data/experimental_conditions/',
+    file_path_output='./data/simulation_data/experimental_conditions/second_round/',
+    file_path_wildtype='./data/simulation_data/wildtype.txt',
+    protein_concentrations=[.1, 1, 10],
     number_rounds=2,
     min_length=30,
     splitting_probability=3/100,
