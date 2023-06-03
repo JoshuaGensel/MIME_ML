@@ -326,3 +326,37 @@ def inferPairwiseKds(model, numberFeatures, n : int):
                             predictedPairwiseKds.append(correctedKd.tolist())
 
     return predictedPairwiseKds
+
+def inferSingleKdsProtein(model, numberFeatures, n : int, number_protein_concentrations : int):
+    
+    predictedKds = dict()
+    for protein_concentration_1 in range(number_protein_concentrations):
+        for protein_concentration_2 in range(number_protein_concentrations):
+            predictions = []
+            prediction_example = np.zeros(numberFeatures)
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            for pos in tqdm(range(6, numberFeatures, 4)):
+                for mut in range(1,4):
+                    wildtype_prediction_example = prediction_example.copy()
+                    mutation_prediction_example = prediction_example.copy()
+                    wildtype_prediction_example[protein_concentration_1] = 1
+                    wildtype_prediction_example[protein_concentration_2+number_protein_concentrations] = 1
+                    wildtype_prediction_example[pos] = 1
+                    mutation_prediction_example[pos+mut] = 1
+                    mutation_prediction_example[protein_concentration_1] = 1
+                    mutation_prediction_example[protein_concentration_2+number_protein_concentrations] = 1
+                    wildtype_prediction_example = torch.from_numpy(wildtype_prediction_example).float()
+                    mutation_prediction_example = torch.from_numpy(mutation_prediction_example).float()
+                    wildtype_prediction_example = wildtype_prediction_example.to(device)
+                    mutation_prediction_example = mutation_prediction_example.to(device)
+                    with torch.no_grad():
+                        wildtype_output = model.predict(wildtype_prediction_example, n)
+                        mutation_output = model.predict(mutation_prediction_example, n)
+                        #calculate Kds
+                        wildtypeKd = 1/np.array(wildtype_output) - 1
+                        mutationKd = 1/np.array(mutation_output) - 1
+                        correctedKd = mutationKd / wildtypeKd
+                        predictions.append(correctedKd.tolist())
+            predictedKds[(protein_concentration_1, protein_concentration_2)] = predictions
+
+    return predictedKds
