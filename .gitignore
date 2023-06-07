@@ -9,3 +9,4 @@ __pycache__
 *.pth
 src/simulation_files/archive
 pair_kd_pred.txt
+*.json

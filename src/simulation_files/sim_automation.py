@@ -3,7 +3,7 @@ import os
 from random import *
 
 pathToSim = "~/projects/dmMIMESim/build/bin/MIMESim_prog"
-workingDirectory = "./data/simulation_data/experimental_conditions"
+workingDirectory = "./data/simulation_data/experimental_conditions_2"
 
 #parameters
 L = 100
