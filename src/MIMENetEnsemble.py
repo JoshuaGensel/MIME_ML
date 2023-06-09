@@ -360,3 +360,50 @@ def inferSingleKdsProtein(model, numberFeatures, n : int, number_protein_concent
             predictedKds[(protein_concentration_1, protein_concentration_2)] = predictions
 
     return predictedKds
+
+
+def inferEpistasis(singleKds : list, pairwiseKds : list):
+    
+    single_kd_pred = np.array(singleKds)
+    single_kd_pred_means = np.mean(single_kd_pred, axis=1)
+    single_kd_pred_conf = np.zeros((single_kd_pred_means.shape[0], 2))
+    for i in range(single_kd_pred_means.shape[0]):
+        single_kd_pred_conf[i] = np.quantile(single_kd_pred[i], [0.025, 0.975])
+
+    pairwise_kd_pred = np.array(pairwiseKds)
+    pairwise_kd_pred_means = np.mean(pairwise_kd_pred, axis=1)
+    pairwise_kd_pred_conf = np.zeros((pairwise_kd_pred_means.shape[0], 2))
+    for i in range(pairwise_kd_pred_means.shape[0]):
+        pairwise_kd_pred_conf[i] = np.quantile(pairwise_kd_pred[i], [0.025, 0.975])
+
+    #iterate through all possible pairs
+    epistasis = []
+    i = 0
+    for pos1 in range(single_kd_pred.shape[0], 3):
+        for pos2 in range(pos1+1, single_kd_pred.shape[0], 3):
+            for mut1 in range(3):
+                for mut2 in range(3):
+            
+                    # check if the lower bounds of the intervals are both above 1
+                    single_kds_above_1 = single_kd_pred_conf[pos1+mut1][0] > 1 and single_kd_pred_conf[pos2+mut2][0] > 1
+
+                    # check if the upper bounds of the intervals are both below 1
+                    single_kds_below_1 = single_kd_pred_conf[pos1+mut1][1] < 1 and single_kd_pred_conf[pos2+mut2][1] < 1
+
+                    # check if pairwise interval contains 1
+                    pairwise_kd_contains_1 = pairwise_kd_pred_conf[i][0] < 1 and pairwise_kd_pred_conf[i][1] > 1
+
+                    # check if the lower bound of the pairwise interval is above 1
+                    pairwise_kd_above_1 = pairwise_kd_pred_conf[i][0] > 1
+
+                    # check if the upper bound of the pairwise interval is below 1
+                    pairwise_kd_below_1 = pairwise_kd_pred_conf[i][1] < 1
+
+                    if (single_kds_above_1 and pairwise_kd_contains_1) or (single_kds_below_1 and pairwise_kd_contains_1) or (single_kds_above_1 and pairwise_kd_below_1) or (single_kds_below_1 and pairwise_kd_above_1):
+                        epistasis.append(1)
+                    else:
+                        epistasis.append(0)
+                    i += 1
+
+    return epistasis
+
