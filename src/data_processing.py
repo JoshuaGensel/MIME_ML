@@ -253,7 +253,7 @@ def align_reads_experimental(file_path_reads_left: str, file_path_reads_right: s
 
 
 
-align_reads_experimental('./data/test_files/experimental/left.1.sam', './data/test_files/experimental/right.2.sam', './data/test_files/experimental/aligned_reads.txt', 536)
+# align_reads_experimental('./data/test_files/experimental/left.1.sam', './data/test_files/experimental/right.2.sam', './data/test_files/experimental/aligned_reads.txt', 536)
 
 
 # align_reads_simulator('./data/test_files/7.txt', './data/test_files/aligned_reads_bound.txt', 1/20, 7, 42)
@@ -777,7 +777,7 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str, 
                 second_protein_concentration = protein_concentrations[j]
 
                 # set the file path for current protein concentration pair
-                file_path = file_path_simulation_output + 'secondFromProt' + str(first_protein_concentration) + '/prot' + str(second_protein_concentration) + '/sequences/'
+                file_path = file_path_simulation_output + 'secondFromProt' + str(first_protein_concentration) + '/prot' + str(second_protein_concentration) + '/'
 
 
                 # align the reads
@@ -794,6 +794,307 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str, 
                     splitting_probabality=splitting_probability,
                     read_length=read_length,
                     seed=seed**2
+                )
+
+                # label the reads
+                label_reads(
+                    file_path_bound='./data/cache/aligned_reads_bound.txt',
+                    file_path_unbound='./data/cache/aligned_reads_unbound.txt',
+                    file_path_wildtype=file_path_wildtype,
+                    file_path_output='./data/cache/labelled_reads.txt'
+                )
+
+                # read the labelled reads
+                with open('./data/cache/labelled_reads.txt', 'r') as labelled_reads_file:
+                    labelled_reads = labelled_reads_file.readlines()
+
+                # get the read lengths and the number of mutations per read
+                read_lengths = []
+                mutations_per_read_bound = []
+                mutations_per_read_unbound = []
+                for read in labelled_reads:
+                    # labels are separated by an underscore
+                    labels = read.split('_')
+                    # the second label is the read length
+                    read_lengths.append(int(labels[2]))
+                    # the third label is the number of mutations
+                    if labels[1] == '1':
+                        mutations_per_read_bound.append(int(labels[3]))
+                    elif labels[1] == '0':
+                        mutations_per_read_unbound.append(int(labels[3]))
+                    else:
+                        raise ValueError('Invalid bound/unbound label')
+
+                # write the read lengths and the number of mutations per read to the output directory
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_read_lengths.txt', 'w') as output_file:
+                    for read_length in read_lengths:
+                        output_file.write(str(read_length) + ' ')
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mpr_bound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_bound:
+                        output_file.write(str(mutations) + ' ')
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mpr_unbound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_unbound:
+                        output_file.write(str(mutations) + ' ')
+
+                # delete the aligned reads
+                os.remove('./data/cache/aligned_reads_bound.txt')
+                os.remove('./data/cache/aligned_reads_unbound.txt')
+
+                # filter the reads
+                filter_reads(
+                    file_path_labeled_reads='./data/cache/labelled_reads.txt',
+                    file_path_output='./data/cache/pooled/',
+                    min_length=min_length
+                )
+
+                # get the number of mutations per read for the filtered reads
+                with open('./data/cache/pooled/filtered_reads.txt', 'r') as filtered_reads_file:
+                    filtered_reads = filtered_reads_file.readlines()
+
+                mutations_per_read_bound = []
+                mutations_per_read_unbound = []
+                for read in filtered_reads:
+                    # labels are separated by an underscore
+                    labels = read.split('_')
+                    # the third label is the number of mutations
+                    if labels[1] == '1':
+                        mutations_per_read_bound.append(int(labels[3]))
+                    elif labels[1] == '0':
+                        mutations_per_read_unbound.append(int(labels[3]))
+                    else:
+                        raise ValueError('Invalid bound/unbound label')
+
+                # write the number of mutations per read to the output directory
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mprf_bound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_bound:
+                        output_file.write(str(mutations) + ' ')
+                with open(file_path_output + str(i+1) + '_' + str(j+1) + '_mprf_unbound.txt', 'w') as output_file:
+                    for mutations in mutations_per_read_unbound:
+                        output_file.write(str(mutations) + ' ')
+
+                # delete the labelled reads
+                os.remove('./data/cache/labelled_reads.txt')
+
+                # rename filtered_reads.txt and double_mutant_reads.txt according to the protein concentration
+                os.rename('./data/cache/pooled/filtered_reads.txt', './data/cache/pooled/' + str(i+1) + '_' + str(j+1) + '_filtered_reads.txt')
+                os.rename('./data/cache/pooled/double_mutant_reads.txt', './data/cache/pooled/' + str(i+1) + '_' + str(j+1) + '_double_mutant_reads.txt')
+
+        # concatenate the pools
+
+        concatenate_pools(
+            file_path_pools='./data/cache/pooled/',
+            file_path_output=file_path_output,
+            number_protein_concentrations=len(protein_concentrations),
+            number_rounds=number_rounds
+        )
+
+        # shuffle parsed_reads.txt and dm_parsed_reads.txt
+        with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+            parsed_reads = output_file.readlines()
+        random.shuffle(parsed_reads)
+        with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+            for read in parsed_reads:
+                output_file.write(read)
+
+        with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
+            parsed_reads = output_file.readlines()
+        random.shuffle(parsed_reads)
+        with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
+            for read in parsed_reads:
+                output_file.write(read)
+
+        # delete the pools
+        shutil.rmtree('./data/cache/pooled/')
+
+        # create the pooled directory again
+        os.mkdir('./data/cache/pooled/')
+
+
+
+
+    return None
+
+
+def parse_experiment(file_path_data : str, file_path_output : str, file_path_wildtype : str,
+                     protein_concentrations : list, number_rounds = 2,
+                     min_length = 100):
+
+
+    # assert that number_rounds is either 1 or 2
+    assert number_rounds == 1 or number_rounds == 2, 'number_rounds must be either 1 or 2'
+
+    # set sequence length to length of wildtype sequence
+    with open(file_path_wildtype, 'r') as wildtype_file:
+        # get line that doesn't start with '>'
+        for line in wildtype_file:
+            if not line.startswith('>'):
+                sequence_length = len(line.strip())
+                break
+
+    # case number_rounds == 1
+    if number_rounds == 1:
+
+        #iterate over all protein concentrations
+        for i in tqdm(range(len(protein_concentrations))):
+
+            protein_concentration = protein_concentrations[i]
+            
+            # set file path for the current protein concentration
+            file_path = file_path_data + 'prot' + str(protein_concentration) + '/'
+
+            # align the reads
+            align_reads_experimental(
+                file_path_reads_left=file_path + f'GAG_BO_{protein_concentration}.1.sam',
+                file_path_reads_right=file_path + f'GAG_BO_{protein_concentration}.2.sam',
+                file_path_output='./data/cache/aligned_reads_bound.txt',
+                sequence_length=sequence_length,
+            )
+            align_reads_experimental(
+                file_path_reads_left=file_path + f'GAG_UB_{protein_concentration}_unbound.1.sam',
+                file_path_reads_right=file_path + f'GAG_UB_{protein_concentration}_unbound.2.sam',
+                file_path_output='./data/cache/aligned_reads_unbound.txt',
+                sequence_length=sequence_length,
+            )
+
+            # label the reads
+            label_reads(
+                file_path_bound='./data/cache/aligned_reads_bound.txt',
+                file_path_unbound='./data/cache/aligned_reads_unbound.txt',
+                file_path_wildtype=file_path_wildtype,
+                file_path_output='./data/cache/labelled_reads.txt'
+            )
+
+            # read the labelled reads
+            with open('./data/cache/labelled_reads.txt', 'r') as labelled_reads_file:
+                labelled_reads = labelled_reads_file.readlines()
+
+            # get the read lengths and the number of mutations per read
+            read_lengths = []
+            mutations_per_read_bound = []
+            mutations_per_read_unbound = []
+            for read in labelled_reads:
+                # labels are separated by an underscore
+                labels = read.split('_')
+                # the second label is the read length
+                read_lengths.append(int(labels[2]))
+                # the third label is the number of mutations
+                if labels[1] == '1':
+                    mutations_per_read_bound.append(int(labels[3]))
+                elif labels[1] == '0':
+                    mutations_per_read_unbound.append(int(labels[3]))
+                else:
+                    raise ValueError('Invalid bound/unbound label')
+                
+            # write the read lengths and the number of mutations per read to the output directory
+            with open(file_path_output + str(i+1) + '_read_lengths.txt', 'w') as output_file:
+                for read_length in read_lengths:
+                    output_file.write(str(read_length) + ' ')
+            with open(file_path_output + str(i+1) + '_mpr_bound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_bound:
+                    output_file.write(str(mutations) + ' ')
+            with open(file_path_output + str(i+1) + '_mpr_unbound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_unbound:
+                    output_file.write(str(mutations) + ' ')
+
+            # delete the aligned reads
+            os.remove('./data/cache/aligned_reads_bound.txt')
+            os.remove('./data/cache/aligned_reads_unbound.txt')
+
+            # filter the reads
+            filter_reads(
+                file_path_labeled_reads='./data/cache/labelled_reads.txt',
+                file_path_output='./data/cache/pooled/',
+                min_length=min_length
+            )
+
+            # get the number of mutations per read for the filtered reads
+            with open('./data/cache/pooled/filtered_reads.txt', 'r') as filtered_reads_file:
+                filtered_reads = filtered_reads_file.readlines()
+
+            mutations_per_read_bound = []
+            mutations_per_read_unbound = []
+            for read in filtered_reads:
+                # labels are separated by an underscore
+                labels = read.split('_')
+                # the third label is the number of mutations
+                if labels[1] == '1':
+                    mutations_per_read_bound.append(int(labels[3]))
+                elif labels[1] == '0':
+                    mutations_per_read_unbound.append(int(labels[3]))
+                else:
+                    raise ValueError('Invalid bound/unbound label')
+
+            # write the number of mutations per read to the output directory
+            with open(file_path_output + str(i+1) + '_mprf_bound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_bound:
+                    output_file.write(str(mutations) + ' ')
+            with open(file_path_output + str(i+1) + '_mprf_unbound.txt', 'w') as output_file:
+                for mutations in mutations_per_read_unbound:
+                    output_file.write(str(mutations) + ' ')
+
+            # delete the labelled reads
+            os.remove('./data/cache/labelled_reads.txt')
+
+            # rename filtered_reads.txt and double_mutant_reads.txt according to the protein concentration
+            os.rename('./data/cache/pooled/filtered_reads.txt', './data/cache/pooled/' + str(i+1) + '_filtered_reads.txt')
+            os.rename('./data/cache/pooled/double_mutant_reads.txt', './data/cache/pooled/' + str(i+1) + '_double_mutant_reads.txt')
+
+        # concatenate the pools
+
+        concatenate_pools(
+            file_path_pools='./data/cache/pooled/',
+            file_path_output=file_path_output,
+            number_protein_concentrations=len(protein_concentrations),
+            number_rounds=number_rounds
+        )
+
+        # shuffle parsed_reads.txt and dm_parsed_reads.txt
+        with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+            parsed_reads = output_file.readlines()
+        random.shuffle(parsed_reads)
+        with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+            for read in parsed_reads:
+                output_file.write(read)
+
+        with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
+            parsed_reads = output_file.readlines()
+        random.shuffle(parsed_reads)
+        with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
+            for read in parsed_reads:
+                output_file.write(read)
+
+        # delete the pools
+        shutil.rmtree('./data/cache/pooled/')
+
+        # create the pooled directory again
+        os.mkdir('./data/cache/pooled/')
+
+    # case number_rounds == 2
+    if number_rounds == 2:
+
+        # iterate over all protein concentrations
+        for i in tqdm(range(len(protein_concentrations))):
+            for j in tqdm(range(len(protein_concentrations)), leave=False):
+
+                first_protein_concentration = protein_concentrations[i]
+                second_protein_concentration = protein_concentrations[j]
+
+                # set the file path for current protein concentration pair
+                file_path = file_path_data + 'secondFromProt' + str(first_protein_concentration) + '/prot' + str(second_protein_concentration) + '/'
+
+
+                # align the reads
+                align_reads_experimental(
+                    file_path_reads_left=file_path + f'GAG_BO_{first_protein_concentration}_{second_protein_concentration}.1.sam',
+                    file_path_reads_right=file_path + f'GAG_BO_{first_protein_concentration}_{second_protein_concentration}.2.sam',
+                    file_path_output='./data/cache/aligned_reads_bound.txt',
+                    sequence_length=sequence_length,
+                )
+                align_reads_experimental(
+                    file_path_reads_left=file_path + f'GAG_UB_{first_protein_concentration}_{second_protein_concentration}.1.sam',
+                    file_path_reads_right=file_path + f'GAG_UB_{first_protein_concentration}_{second_protein_concentration}.2.sam',
+                    file_path_output='./data/cache/aligned_reads_unbound.txt',
+                    sequence_length=sequence_length,
                 )
 
                 # label the reads
@@ -939,3 +1240,14 @@ def parse_simulation(file_path_simulation_output : str, file_path_output : str, 
 #     read_length=23,
 #     seed=24
 # )
+
+
+# parse second round of experimental data
+parse_experiment(
+    file_path_data='./data/experimental_data/',
+    file_path_output='./data/experimental_data/training_data',
+    file_path_wildtype='./data/experimental_data/5NL43.fasta',
+    protein_concentrations=[8,40,200,1000],
+    number_rounds=2,
+    min_length=100,
+)
