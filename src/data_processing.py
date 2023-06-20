@@ -146,9 +146,20 @@ def parse_sequence(sequence, cigar_string, quality_string):
 
 def align_fragment(length_sequence, pos, cigar_string, sequence, quality_string):
     parsed_sequence = parse_sequence(sequence, cigar_string, quality_string)
+    # get only numbers from cigar string
+    numbers = re.findall(r'\d+', cigar_string)
+    # get only letters from cigar string
+    letters = re.findall(r'[A-Z]', cigar_string)
+    offset = 0
+    # iterate through letters till find M
+    for i in range(len(letters)):
+        if letters[i] != 'M':
+            offset += int(numbers[i])
+        else:
+            break
     aligned_sequence = ''
     # add pos - 1 0s to the beginning of the sequence
-    aligned_sequence += '0' * (pos - 1)
+    aligned_sequence += '0' * (pos - 1 - offset)
     # add parsed sequence to the end of the sequence
     aligned_sequence += parsed_sequence
     # add 0s to the end of the sequence
@@ -925,11 +936,8 @@ def parse_experiment(file_path_data : str, file_path_output : str, file_path_wil
 
     # set sequence length to length of wildtype sequence
     with open(file_path_wildtype, 'r') as wildtype_file:
-        # get line that doesn't start with '>'
-        for line in wildtype_file:
-            if not line.startswith('>'):
-                sequence_length = len(line.strip())
-                break
+        wildtype = wildtype_file.readlines()[0]
+    sequence_length = len(wildtype)
 
     # case number_rounds == 1
     if number_rounds == 1:
@@ -1178,6 +1186,7 @@ def parse_experiment(file_path_data : str, file_path_output : str, file_path_wil
 
                 # rename filtered_reads.txt and double_mutant_reads.txt according to the protein concentration
                 os.rename('./data/cache/pooled/filtered_reads.txt', './data/cache/pooled/' + str(i+1) + '_' + str(j+1) + '_filtered_reads.txt')
+                #if double_mutant_reads.txt exists, rename it
                 os.rename('./data/cache/pooled/double_mutant_reads.txt', './data/cache/pooled/' + str(i+1) + '_' + str(j+1) + '_double_mutant_reads.txt')
 
         # concatenate the pools
@@ -1189,20 +1198,20 @@ def parse_experiment(file_path_data : str, file_path_output : str, file_path_wil
             number_rounds=number_rounds
         )
 
-        # shuffle parsed_reads.txt and dm_parsed_reads.txt
-        with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
-            parsed_reads = output_file.readlines()
-        random.shuffle(parsed_reads)
-        with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
-            for read in parsed_reads:
-                output_file.write(read)
+        # # shuffle parsed_reads.txt and dm_parsed_reads.txt
+        # with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+        #     parsed_reads = output_file.readlines()
+        # random.shuffle(parsed_reads)
+        # with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+        #     for read in parsed_reads:
+        #         output_file.write(read)
 
-        with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
-            parsed_reads = output_file.readlines()
-        random.shuffle(parsed_reads)
-        with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
-            for read in parsed_reads:
-                output_file.write(read)
+        # with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
+        #     parsed_reads = output_file.readlines()
+        # random.shuffle(parsed_reads)
+        # with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
+        #     for read in parsed_reads:
+        #         output_file.write(read)
 
         # delete the pools
         shutil.rmtree('./data/cache/pooled/')
@@ -1245,8 +1254,8 @@ def parse_experiment(file_path_data : str, file_path_output : str, file_path_wil
 # parse second round of experimental data
 parse_experiment(
     file_path_data='./data/experimental_data/',
-    file_path_output='./data/experimental_data/training_data',
-    file_path_wildtype='./data/experimental_data/5NL43.fasta',
+    file_path_output='./data/experimental_data/training_data/',
+    file_path_wildtype='./data/experimental_data/5NL43.txt',
     protein_concentrations=[8,40,200,1000],
     number_rounds=2,
     min_length=100,
