@@ -162,6 +162,9 @@ def align_fragment(length_sequence, pos, cigar_string, sequence, quality_string)
     aligned_sequence += '0' * (pos - 1 - offset)
     # add parsed sequence to the end of the sequence
     aligned_sequence += parsed_sequence
+    if (pos - 1 - offset) < 0:
+        # remove extra 0s from the beginning of the sequence
+        aligned_sequence = aligned_sequence[-(pos - 1 - offset):]
     # add 0s to the end of the sequence
     aligned_sequence += '0' * (length_sequence - len(aligned_sequence))
     return aligned_sequence
@@ -584,21 +587,21 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
                 os.remove(file_path_output + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_dm_parsed_reads.txt')
                 
 
-    # shuffle the output file
-    with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
-        parsed_reads = output_file.readlines()
-    random.shuffle(parsed_reads)
-    with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
-        for read in parsed_reads:
-            output_file.write(read)
+    # # shuffle the output file
+    # with open(file_path_output + 'parsed_reads.txt', 'r') as output_file:
+    #     parsed_reads = output_file.readlines()
+    # random.shuffle(parsed_reads)
+    # with open(file_path_output + 'parsed_reads.txt', 'w') as output_file:
+    #     for read in parsed_reads:
+    #         output_file.write(read)
 
-    # shuffle the output file
-    with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
-        parsed_reads = output_file.readlines()
-    random.shuffle(parsed_reads)
-    with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
-        for read in parsed_reads:
-            output_file.write(read)
+    # # shuffle the output file
+    # with open(file_path_output + 'dm_parsed_reads.txt', 'r') as output_file:
+    #     parsed_reads = output_file.readlines()
+    # random.shuffle(parsed_reads)
+    # with open(file_path_output + 'dm_parsed_reads.txt', 'w') as output_file:
+    #     for read in parsed_reads:
+    #         output_file.write(read)
     
     return None
 
