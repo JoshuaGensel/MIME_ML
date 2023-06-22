@@ -1254,12 +1254,12 @@ def parse_experiment(file_path_data : str, file_path_output : str, file_path_wil
 # )
 
 
-# parse second round of experimental data
-parse_experiment(
-    file_path_data='./data/experimental_data/',
-    file_path_output='./data/experimental_data/training_data/',
-    file_path_wildtype='./data/experimental_data/5NL43.txt',
-    protein_concentrations=[8,40,200,1000],
-    number_rounds=2,
-    min_length=100,
-)
+# # parse second round of experimental data
+# parse_experiment(
+#     file_path_data='./data/experimental_data/',
+#     file_path_output='./data/experimental_data/training_data/',
+#     file_path_wildtype='./data/experimental_data/5NL43.txt',
+#     protein_concentrations=[8,40,200,1000],
+#     number_rounds=2,
+#     min_length=100,
+# )
