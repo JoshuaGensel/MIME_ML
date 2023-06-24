@@ -398,6 +398,9 @@ def filter_reads(file_path_labeled_reads: str, file_path_output: str, min_length
         # if the read is shorter than min_length, discard it
         if int(read.split('_')[-2]) < min_length:
             continue
+        # if the read has more than 5 mutations, discard it
+        if int(read.split('_')[-1]) > 5:
+            continue
         # if the read has 2 mutations, write it to the extra file
         if int(read.split('_')[-1]) == 2:
             with open(file_path_output + 'double_mutant_reads.txt', 'a') as output_file:
@@ -1254,12 +1257,12 @@ def parse_experiment(file_path_data : str, file_path_output : str, file_path_wil
 # )
 
 
-# # parse second round of experimental data
-# parse_experiment(
-#     file_path_data='./data/experimental_data/',
-#     file_path_output='./data/experimental_data/training_data/',
-#     file_path_wildtype='./data/experimental_data/5NL43.txt',
-#     protein_concentrations=[8,40,200,1000],
-#     number_rounds=2,
-#     min_length=100,
-# )
+# parse second round of experimental data
+parse_experiment(
+    file_path_data='./data/experimental_data/',
+    file_path_output='./data/experimental_data/training_data/',
+    file_path_wildtype='./data/experimental_data/5NL43.txt',
+    protein_concentrations=[8,40,200,1000],
+    number_rounds=2,
+    min_length=100,
+)

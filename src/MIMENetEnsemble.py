@@ -100,6 +100,8 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     #initialize model
     model = MIMENetEnsemble(input_size, hidden_size_factor, bottleneck, output_size)
 
+    epoch = 0
+
     # if model file already exists, load it
     if exists(model_path + ".pt"):
         model.load_state_dict(torch.load(model_path))
@@ -135,7 +137,7 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     correlation_history_kds = []
 
     #training loop
-    for epoch in tqdm(range(epochs)):
+    for epoch in tqdm(range(epochs - epoch)):
 
         #  print("Epoch: " + str(epoch+1) + "/" + str(epochs))
 
