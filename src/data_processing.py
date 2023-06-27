@@ -559,6 +559,10 @@ def concatenate_pools(file_path_pools : str, file_path_output : str, number_prot
     if number_rounds == 2:
         for protein_concentration_1 in range(number_protein_concentrations):
             for protein_concentration_2 in range(number_protein_concentrations):
+
+                # skip if protein_concentration_1 == 3 and protein_concentration_2 == 3 or protein_concentration_1 == 3 and protein_concentration_2 == 4
+                if (protein_concentration_1 == 2 and protein_concentration_2 == 2) or (protein_concentration_1 == 2 and protein_concentration_2 == 3):
+                    continue
                 
                 # parse the reads of the pool
                 parse_single_pool(file_path_pools + str(protein_concentration_1 + 1) + '_' + str(protein_concentration_2 + 1) + '_filtered_reads.txt', 
@@ -1089,6 +1093,9 @@ def parse_experiment(file_path_data : str, file_path_output : str, file_path_wil
         # iterate over all protein concentrations
         for i in tqdm(range(len(protein_concentrations))):
             for j in tqdm(range(len(protein_concentrations)), leave=False):
+
+                if (i == 2 and j == 2) or (i == 2 and j == 3):
+                    continue
 
                 first_protein_concentration = protein_concentrations[i]
                 second_protein_concentration = protein_concentrations[j]

@@ -55,25 +55,28 @@ class CustomTrainingSet(torch.utils.data.Dataset):
     #training examples and labels are separated by an underscore
     #training examples are not separated
     def __init__(self, path):
-        # set file path
-        self.path = path
-        # read first line as text
-        with open(self.path) as f:
-            self.first_line = f.readline()
-        # split first line by underscore
-        self.training_length = len(self.first_line.split('_')[0])
-        # get number of lines in file
-        self.len = sum(1 for line in open(self.path))
+        #read file
+        file = open(path, 'r')
+        #read lines
+        self.lines = file.readlines(int(4e10))
+        #close file
+        file.close()
+        #get length
+        self.len = len(self.lines)
         print("Number of training examples: " + str(self.len))
 
 
     def __getitem__(self, index):
-        # np.genfromtxt at index line
-        x = np.genfromtxt(self.path, delimiter=1, dtype=int, skip_header=index, max_rows=1, usecols=range(self.training_length))
-        y = np.genfromtxt(self.path, delimiter=1, dtype=int, skip_header=index, max_rows=1, usecols=self.training_length+1)
-        # convert to tensors
-        x = torch.from_numpy(x).float()
-        y = torch.from_numpy(y).float()
+        #split line
+        line = self.lines[index].split('_')
+        #append training example to x
+        # inputs are not separated by spaces
+        x = [float(i) for i in line[0]]
+        #append label to y
+        y = [float(line[1])]
+        #convert to torch tensors
+        x = torch.tensor(x)
+        y = torch.tensor(y)
         return x, y
 
     def __len__(self):
@@ -100,26 +103,6 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     #initialize model
     model = MIMENetEnsemble(input_size, hidden_size_factor, bottleneck, output_size)
 
-    epoch = 0
-
-    # if model file already exists, load it
-    if exists(model_path + ".pt"):
-        model.load_state_dict(torch.load(model_path))
-        print("Loaded model from " + str(model_path))
-        #load training history
-        train_history = np.load(model_path + "_train_history.npy").tolist()
-        #load prediction history
-        prediction_history = np.load(model_path + "_prediction_history.npy").tolist()
-        #load correlation history
-        correlation_history_probs = np.load(model_path + "_correlation_history_probs.npy").tolist()
-        correlation_history_kds = np.load(model_path + "_correlation_history_kds.npy").tolist()
-        #load epoch
-        epoch = np.load(model_path + "_epoch.npy").tolist()
-        #load optimizer
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_l2)
-        optimizer.load_state_dict(torch.load(model_path + "_optimizer.pt"))
-        print("Loaded optimizer from " + str(model_path + "_optimizer.pt"))
-
     #move model to device
     model.to(device)
 
@@ -136,13 +119,34 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     correlation_history_probs = []
     correlation_history_kds = []
 
+    epoch = 0
+
+    # if model file already exists, load it
+    if exists(model_path + ".pt"):
+        model.load_state_dict(torch.load(model_path+".pt"))
+        print("Loaded model from " + str(model_path+".pt"))
+        #load train_history.txt
+        train_history = np.loadtxt(model_path + "_train_history.txt").tolist()        
+        #load prediction history
+        prediction_history = np.loadtxt(model_path + "_prediction_history.txt").tolist()
+        #load correlation history
+        if kd_path is not None:
+            correlation_history_probs = np.loadtxt(model_path + "_correlation_history_probs.txt").tolist()
+            correlation_history_kds = np.loadtxt(model_path + "_correlation_history_kds.txt").tolist()
+        #load epoch
+        epoch = np.loadtxt(model_path + "_epoch.txt", dtype=int)
+        #load optimizer
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=lambda_l2)
+        optimizer.load_state_dict(torch.load(model_path + "_optimizer.pt"))
+        print("Loaded optimizer from " + str(model_path + "_optimizer.pt"))
+
     #training loop
-    for epoch in tqdm(range(epochs - epoch)):
+    for epo in range(epoch, epochs):
 
         #  print("Epoch: " + str(epoch+1) + "/" + str(epochs))
 
         #training loop
-        for i, (x, y) in enumerate(train_loader):
+        for x, y in tqdm(train_loader, desc="Epoch: " + str(epo+1) + "/" + str(epochs)):
             #cast to device
             x = x.to(device)
             y = y.to(device)
@@ -180,7 +184,7 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
             correlation_history_kds.append(np.corrcoef(1/np.array(prediction_history[-1])-1, kds)[0, 1])
 
         # if epoch is multiple of backup interval, save model
-        if epoch % backup_interval == 0:
+        if epo % backup_interval == 0:
             #save model
             torch.save(model.state_dict(), model_path + ".pt")
             #save history
@@ -189,7 +193,7 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
             if kd_path is not None:
                 np.savetxt(model_path + "_correlation_history_probs.txt", correlation_history_probs)
                 np.savetxt(model_path + "_correlation_history_kds.txt", correlation_history_kds)
-            np.savetxt(model_path + "_epoch.txt", np.array([epoch]))
+            np.savetxt(model_path + "_epoch.txt", np.array([epo]).astype(int))
             torch.save(optimizer.state_dict(), model_path + "_optimizer.pt")
 
 
@@ -257,7 +261,7 @@ def inferPairwiseProbabilities(model, numberFeatures, n : int):
     predictionsPairwise = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for i in tqdm(range(6, numberFeatures,4)):
+    for i in tqdm(range(8, numberFeatures,4)):
         for j in range(i+4, numberFeatures,4):
             for k in range(1,4):
                 for l in range(1,4):
@@ -273,25 +277,19 @@ def inferPairwiseProbabilities(model, numberFeatures, n : int):
 
     return predictionsPairwise
 
-def inferSingleKds(model, numberFeatures, n : int):
-    """
-    Predicts Kd values for all possible mutations of a single position of the RNA sequence. For this, the model predicts
-    synthetic data where only one mutation is present at a time. The order of the predictions is the following: position 1 mutation 1, 
-    position 1 mutation 2, position 1 mutation 3, position 2 mutation 1, etc.). The predictions are returned as a list of Kd values.
+def inferSingleKds(model, n_protein_concentrations, n_rounds, path_wildtype, n : int):
 
-    Args:
-        model (MIMENet.model): Model returned by train function of MIMENet used for prediction
-        numberFeatures (int): Number of features in the dataset. This is 4 times the number of postitions of the RNA (from one 
-        hot encoding) plus the number of protein concentrations times the number of rounds performed (8 for the classical MIME 
-        experiment).
+    # read in wildtype
+    with open(path_wildtype, 'r') as f:
+        wildtype = f.read()
 
-    Returns:
-        list: a list of Kd values for each mutation along the RNA sequence
-    """
-    predictedKds = []
-    prediction_example = np.zeros(numberFeatures)
+    n_features = len(wildtype) * 4 + n_protein_concentrations * n_rounds
+    
+    kds_nucleotide = []
+    kds_position = []
+    prediction_example = np.zeros(n_features)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for pos in tqdm(range(6, numberFeatures, 4)):
+    for pos, feature in tqdm(enumerate(n_protein_concentrations*n_rounds, n_features, 4)):
         for mut in range(1,4):
             wildtype_prediction_example = prediction_example.copy()
             mutation_prediction_example = prediction_example.copy()
@@ -310,7 +308,7 @@ def inferSingleKds(model, numberFeatures, n : int):
                 correctedKd = mutationKd / wildtypeKd
                 predictedKds.append(correctedKd.tolist())
 
-    return predictedKds
+    return kds_nucleotide, kds_position
 
 def inferPairwiseKds(model, numberFeatures, n : int):
     """

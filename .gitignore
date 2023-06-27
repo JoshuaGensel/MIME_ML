@@ -4,10 +4,12 @@ data/simulation_data
 data/experimental_data
 data/test_simulation
 data/cache
+src/experimental_model
 __pycache__
 *.sam
 *.tar.gz
 *.pth
+*.pt
 src/simulation_files/archive
 pair_kd_pred.txt
 *.json
