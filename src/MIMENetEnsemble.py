@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from os.path import exists
+import linecache
+import json
 
 import numpy as np
 from tqdm import tqdm
@@ -55,20 +57,17 @@ class CustomTrainingSet(torch.utils.data.Dataset):
     #training examples and labels are separated by an underscore
     #training examples are not separated
     def __init__(self, path):
-        #read file
-        file = open(path, 'r')
-        #read lines
-        self.lines = file.readlines(int(4e10))
-        #close file
-        file.close()
-        #get length
-        self.len = len(self.lines)
-        print("Number of training examples: " + str(self.len))
+        # set path
+        self.path = path
+        # get number of lines at path
+        self.len = sum(1 for line in open(path))
 
 
     def __getitem__(self, index):
+        #get line with linecache
+        self.line = linecache.getline(self.path, index+1)
         #split line
-        line = self.lines[index].split('_')
+        line = self.line.split('_')
         #append training example to x
         # inputs are not separated by spaces
         x = [float(i) for i in line[0]]
@@ -208,6 +207,12 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     if kd_path is not None:
         history['correlation_probs'] = correlation_history_probs
         history['correlation_kds'] = correlation_history_kds
+
+    # save model
+    torch.save(model.state_dict(), model_path + "_final_model.pt")
+    # save history as json
+    with open(model_path + "_history.json", 'w') as fp:
+        json.dump(history, fp)
 
     #return model and history
     return model, history
