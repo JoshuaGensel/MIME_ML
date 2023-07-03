@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from os.path import exists
-import linecache
 import json
 
 import numpy as np
@@ -61,13 +60,25 @@ class CustomTrainingSet(torch.utils.data.Dataset):
         self.path = path
         # get number of lines at path
         self.len = sum(1 for line in open(path))
+        # get line offsets
+        self.line_offsets = []
+        with open(path) as f:
+            offset = 0
+            for line in f:
+                self.line_offsets.append(offset)
+                offset += len(line)
+            f.seek(0)
+        #print number of training examples        
+        print("Number of Training examples: " + str(self.len))
 
 
     def __getitem__(self, index):
-        #get line with linecache
-        self.line = linecache.getline(self.path, index+1)
+        # get line at index with seek
+        with open(self.path) as f:
+            f.seek(self.line_offsets[index])
+            line = f.readline()
         #split line
-        line = self.line.split('_')
+        line = line.split('_')
         #append training example to x
         # inputs are not separated by spaces
         x = [float(i) for i in line[0]]
