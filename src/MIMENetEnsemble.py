@@ -203,7 +203,7 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
             if kd_path is not None:
                 np.savetxt(model_path + "_correlation_history_probs.txt", correlation_history_probs)
                 np.savetxt(model_path + "_correlation_history_kds.txt", correlation_history_kds)
-            np.savetxt(model_path + "_epoch.txt", np.array([epo]).astype(int))
+            np.savetxt(model_path + "_epoch.txt", np.array([epo]).astype(int)+1)
             torch.save(optimizer.state_dict(), model_path + "_optimizer.pt")
 
 
@@ -247,7 +247,7 @@ def inferSingleProbabilities(model, numberFeatures, n : int):
     predictions = []
     prediction_example = np.zeros(numberFeatures)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for i in tqdm(range(6, numberFeatures), leave=False):
+    for i in tqdm(range(6, numberFeatures), leave=False): # TODO change to 0, numberFeatures
         current_prediction_example = prediction_example.copy()
         current_prediction_example[i] = 1
         current_prediction_example = torch.from_numpy(current_prediction_example).float()
@@ -469,16 +469,8 @@ def inferSingleKdsProtein(model, numberFeatures, n : int, number_protein_concent
 def inferEpistasis(singleKds : list, pairwiseKds : list):
     
     single_kd_pred = np.array(singleKds)
-    single_kd_pred_means = np.mean(single_kd_pred, axis=1)
-    single_kd_pred_conf = np.zeros((single_kd_pred_means.shape[0], 2))
-    for i in range(single_kd_pred_means.shape[0]):
-        single_kd_pred_conf[i] = np.quantile(single_kd_pred[i], [0.025, 0.975])
 
     pairwise_kd_pred = np.array(pairwiseKds)
-    pairwise_kd_pred_means = np.mean(pairwise_kd_pred, axis=1)
-    pairwise_kd_pred_conf = np.zeros((pairwise_kd_pred_means.shape[0], 2))
-    for i in range(pairwise_kd_pred_means.shape[0]):
-        pairwise_kd_pred_conf[i] = np.quantile(pairwise_kd_pred[i], [0.025, 0.975])
 
     #iterate through all possible pairs
     epistasis = []
@@ -489,26 +481,24 @@ def inferEpistasis(singleKds : list, pairwiseKds : list):
             for mut1 in range(3):
                 for mut2 in range(3):
             
-                    # check if the lower bounds of the intervals are both above 1
-                    single_kds_above_1 = single_kd_pred_conf[pos1+mut1][0] > 1 and single_kd_pred_conf[pos2+mut2][0] > 1
+                    # get single kds
+                    single_kd_1 = single_kd_pred[pos1+mut1]
+                    single_kd_2 = single_kd_pred[pos2+mut2]
+                    # get pairwise kd
+                    pairwise_kd = pairwise_kd_pred[i]
 
-                    # check if the upper bounds of the intervals are both below 1
-                    single_kds_below_1 = single_kd_pred_conf[pos1+mut1][1] < 1 and single_kd_pred_conf[pos2+mut2][1] < 1
+                    # check how often the pairwise kd is lower than the product of the single kds
+                    check = pairwise_kd < single_kd_1 * single_kd_2
+                    count = np.sum(check)
 
-                    # check if pairwise interval contains 1
-                    pairwise_kd_contains_1 = pairwise_kd_pred_conf[i][0] < 1 and pairwise_kd_pred_conf[i][1] > 1
+                    # # predict epistasis if more than 95% of the predictions are lower
+                    # if count / pairwise_kd.shape[0] > 0.95:
+                    #     epistasis.append(1)
+                    # else:
+                    #     epistasis.append(0)
 
-                    # check if the lower bound of the pairwise interval is above 1
-                    pairwise_kd_above_1 = pairwise_kd_pred_conf[i][0] > 1
+                    epistasis.append(count / pairwise_kd.shape[0])
 
-                    # check if the upper bound of the pairwise interval is below 1
-                    pairwise_kd_below_1 = pairwise_kd_pred_conf[i][1] < 1
-
-                    if (single_kds_above_1 and pairwise_kd_contains_1) or (single_kds_below_1 and pairwise_kd_contains_1) or (single_kds_above_1 and pairwise_kd_below_1) or (single_kds_below_1 and pairwise_kd_above_1):
-                        epistasis.append(1)
-                    else:
-                        epistasis.append(0)
-                    i += 1
                     pairs.append((pos1+mut1, pos2+mut2))
 
     return epistasis, pairs
