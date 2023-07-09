@@ -473,11 +473,13 @@ def inferEpistasis(singleKds : list, pairwiseKds : list):
     pairwise_kd_pred = np.array(pairwiseKds)
 
     #iterate through all possible pairs
-    epistasis = []
-    pairs = []
+    epistasis_nuc = []
+    pairs_nuc = []
+    epistasis_pos = []
+    pairs_pos = []
     i = 0
-    for pos1 in range(single_kd_pred.shape[0], 3):
-        for pos2 in range(pos1+1, single_kd_pred.shape[0], 3):
+    for pos1 in range(0, single_kd_pred.shape[0], 3):
+        for pos2 in range(pos1+3, single_kd_pred.shape[0], 3):
             for mut1 in range(3):
                 for mut2 in range(3):
             
@@ -491,17 +493,27 @@ def inferEpistasis(singleKds : list, pairwiseKds : list):
                     check = pairwise_kd < single_kd_1 * single_kd_2
                     count = np.sum(check)
 
-                    # # predict epistasis if more than 95% of the predictions are lower
-                    # if count / pairwise_kd.shape[0] > 0.95:
-                    #     epistasis.append(1)
-                    # else:
-                    #     epistasis.append(0)
 
-                    epistasis.append(count / pairwise_kd.shape[0])
+                    # predict epistasis if more than 95% of the predictions are lower
+                    if count / pairwise_kd.shape[0] > 0.95:
+                        epistasis_nuc.append(1)
+                    else:
+                        epistasis_nuc.append(0)
 
-                    pairs.append((pos1+mut1, pos2+mut2))
+                    # epistasis.append(count / pairwise_kd.shape[0])
 
-    return epistasis, pairs
+                    pairs_nuc.append((pos1+mut1, pos2+mut2))
+
+                    i += 1
+
+            # check if for all 9 pairs of mutations at the two positions, there is epistasis
+            if np.sum(epistasis_nuc[-9:]) == 9:
+                epistasis_pos.append(1)
+            else:
+                epistasis_pos.append(0)
+            pairs_pos.append((pos1//3, pos2//3))
+
+    return epistasis_nuc, pairs_nuc, epistasis_pos, pairs_pos
 
 def computeEpistasis(singleKds : list, pairwiseKds : list):
     
