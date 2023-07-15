@@ -336,7 +336,7 @@ def inferPairwiseProbabilities(model, numberFeatures, n : int):
 
     return predictionsPairwise
 
-def inferSingleKds(model, n_protein_concentrations, n_rounds, path_wildtype, n : int):
+def inferSingleKds(model, n_protein_concentrations, n_rounds, path_wildtype, n : int, batch_size : int):
 
     # read in wildtype
     with open(path_wildtype, 'r') as f:
@@ -344,16 +344,11 @@ def inferSingleKds(model, n_protein_concentrations, n_rounds, path_wildtype, n :
 
     n_features = len(wildtype) * 4 + n_protein_concentrations * n_rounds
     
-    kds_nucleotide = []
-    kds_position = []
-    prediction_example = np.zeros(n_features)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for pos, feature in enumerate(tqdm(range(n_protein_concentrations*n_rounds, n_features, 4))):
-        
-        prediction_example_wildtype = prediction_example.copy()
-        prediction_example_mut1 = prediction_example.copy()
-        prediction_example_mut2 = prediction_example.copy()
-        prediction_example_mut3 = prediction_example.copy()
+    # initialize prediction example (number of nucleotides by number of features)
+    prediction_example_mutation = np.zeros((len(wildtype)*3, n_features))
+    prediction_example_wildtype = np.zeros((len(wildtype), n_features))
+
+    for pos, feature in enumerate(range(n_protein_concentrations*n_rounds, n_features, 4)):
 
         # get wildtype at position
         wildtype_nucleotide = wildtype[pos]
@@ -364,63 +359,56 @@ def inferSingleKds(model, n_protein_concentrations, n_rounds, path_wildtype, n :
         index_wildtype = order_nucleotides.index(wildtype_nucleotide)
 
         # set wildtype nucleotide
-        prediction_example_wildtype[feature + index_wildtype] = 1
+        prediction_example_wildtype[pos, feature + index_wildtype] = 1
 
         # set mutant nucleotides
         indices_mutants = [i for i in range(4) if i != index_wildtype]
-        prediction_example_mut1[feature + indices_mutants[0]] = 1
-        prediction_example_mut2[feature + indices_mutants[1]] = 1
-        prediction_example_mut3[feature + indices_mutants[2]] = 1
+        prediction_example_mutation[pos*3, feature + indices_mutants[0]] = 1
+        prediction_example_mutation[pos*3+1, feature + indices_mutants[1]] = 1
+        prediction_example_mutation[pos*3+2, feature + indices_mutants[2]] = 1
 
 
-        # convert all to tensors
-        prediction_example_wildtype = torch.tensor(prediction_example_wildtype, dtype=torch.float32).to(device)
-        prediction_example_mut1 = torch.tensor(prediction_example_mut1, dtype=torch.float32).to(device)
-        prediction_example_mut2 = torch.tensor(prediction_example_mut2, dtype=torch.float32).to(device)
-        prediction_example_mut3 = torch.tensor(prediction_example_mut3, dtype=torch.float32).to(device)
+    # predict
+    with torch.no_grad():
+        wildtype_prediction = predict(model, prediction_example_wildtype, n, batch_size)
+        mutation_prediction = predict(model, prediction_example_mutation, n, batch_size)
 
-        # predict
-        with torch.no_grad():
-            wildtype_prediction = model.predict(prediction_example_wildtype, n)
-            mut1_prediction = model.predict(prediction_example_mut1, n)
-            mut2_prediction = model.predict(prediction_example_mut2, n)
-            mut3_prediction = model.predict(prediction_example_mut3, n)
+        # compute predictions to kds
+        wildtype_prediction = 1 / wildtype_prediction - 1
+        mutation_prediction = 1 / mutation_prediction - 1
 
-            # calculate kd
-            wildtype_kd = 1 / np.array(wildtype_prediction) - 1
-            mut1_kd = 1 / np.array(mut1_prediction) - 1
-            mut2_kd = 1 / np.array(mut2_prediction) - 1
-            mut3_kd = 1 / np.array(mut3_prediction) - 1
+        # repeat every row in wildtype_prediction 3 times
+        wildtype_prediction = np.repeat(wildtype_prediction, 3, axis=0)
 
-            # correct kds
-            mut1_kd_rel = mut1_kd / wildtype_kd
-            mut2_kd_rel = mut2_kd / wildtype_kd
-            mut3_kd_rel = mut3_kd / wildtype_kd
+        # correct kds
+        kds_nucleotide = mutation_prediction / wildtype_prediction
 
-            # average kds over the 3 mutations
-            pos_kd = np.mean([mut1_kd_rel, mut2_kd_rel, mut3_kd_rel], axis=0)
-            
-            # append to lists
-            kds_nucleotide.append(mut1_kd_rel.tolist())
-            kds_nucleotide.append(mut2_kd_rel.tolist())
-            kds_nucleotide.append(mut3_kd_rel.tolist())
-            kds_position.append(pos_kd.tolist())
+        # reshape to 3d so that 3 rows are grouped together as one position
+        kds_position = kds_nucleotide.reshape((len(wildtype), 3, n))
+
+        # take max of 3 rows
+        kds_position = np.max(kds_position, axis=1)
+
 
     return kds_nucleotide, kds_position
 
-def inferPairwiseKds(model, n_protein_concentrations, n_rounds, path_wildtype, n : int):
+def inferPairwiseKds(model, n_protein_concentrations, n_rounds, path_wildtype, n : int, batch_size : int):
 
     # read in wildtype
     with open(path_wildtype, 'r') as f:
         wildtype = f.read()
 
     n_features = len(wildtype) * 4 + n_protein_concentrations * n_rounds
+    n_pairs_mut = int((len(wildtype)*(len(wildtype)-1)/2)*3*3)
+    n_pairs_wt = int((len(wildtype)*(len(wildtype)-1)/2))
     
-    kds_pairwise = []
-    prediction_example = np.zeros(n_features)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # initialize prediction example
+    prediction_example_mutation = np.zeros((n_pairs_mut, n_features))
+    prediction_example_wildtype = np.zeros((n_pairs_wt, n_features))
+
+    i = 0
     for pos1, feature1 in enumerate(range(n_protein_concentrations*n_rounds, n_features, 4)):
-        for pos2, feature2 in enumerate(tqdm(range(feature1+4, n_features, 4), desc='Position ' + str(pos1+1) + '/' + str(len(wildtype)) + ' ', leave=False)):
+        for pos2, feature2 in enumerate(range(feature1+4, n_features, 4)):
             
             # get wildtype at both positions
             wildtype1 = wildtype[pos1]
@@ -431,6 +419,10 @@ def inferPairwiseKds(model, n_protein_concentrations, n_rounds, path_wildtype, n
             index_wildtype1 = order_nucleotides.index(wildtype1)
             index_wildtype2 = order_nucleotides.index(wildtype2)
 
+            # set wildtype nucleotides
+            prediction_example_wildtype[i//9, feature1 + index_wildtype1] = 1
+            prediction_example_wildtype[i//9, feature2 + index_wildtype2] = 1
+
             # iterate over all possible mutations
             for mut1 in range(4):
                 for mut2 in range(4):
@@ -439,38 +431,28 @@ def inferPairwiseKds(model, n_protein_concentrations, n_rounds, path_wildtype, n
                     if mut1 == index_wildtype1 or mut2 == index_wildtype2:
                         continue
 
-                    prediction_example_wildtype = prediction_example.copy()
-                    prediction_example_mutant = prediction_example.copy()
-
-                    # set wildtype
-                    prediction_example_wildtype[feature1+index_wildtype1] = 1
-                    prediction_example_wildtype[feature2+index_wildtype2] = 1
-
                     # set mutant
-                    prediction_example_mutant[feature1+mut1] = 1
-                    prediction_example_mutant[feature2+mut2] = 1
+                    prediction_example_mutation[i, feature1+mut1] = 1
+                    prediction_example_mutation[i, feature2+mut2] = 1
 
-                    # print('wildtypes: ', feature1+index_wildtype1, feature2+index_wildtype2)
-                    # print('mutants: ', feature1+mut1, feature2+mut2)
+                    i += 1
 
-                    # convert to tensor
-                    prediction_example_wildtype = torch.tensor(prediction_example_wildtype, dtype=torch.float32).to(device)
-                    prediction_example_mutant = torch.tensor(prediction_example_mutant, dtype=torch.float32).to(device)
+    # predict
+    with torch.no_grad():
 
-                    # predict
-                    with torch.no_grad():
-                        prediction_wildtype = model.predict(prediction_example_wildtype, n)
-                        prediction_mutant = model.predict(prediction_example_mutant, n)
+        wildtype_prediction = predict(model, prediction_example_wildtype, n, batch_size)
+        mutation_prediction = predict(model, prediction_example_mutation, n, batch_size)
 
-                    # calculate kd
-                    wildtype_kd = 1 / np.array(prediction_wildtype) - 1
-                    mutant_kd = 1 / np.array(prediction_mutant) - 1
+        # compute predictions to kds
+        wildtype_prediction = 1 / wildtype_prediction - 1
+        mutation_prediction = 1 / mutation_prediction - 1
 
-                    # calculate relative kd
-                    relative_kd = mutant_kd / wildtype_kd
+        # repeat every row in wildtype_prediction 3 times
+        wildtype_prediction = np.repeat(wildtype_prediction, 9, axis=0)
 
-                    # append to list
-                    kds_pairwise.append(relative_kd.tolist())
+        # correct kds
+        kds_pairwise = mutation_prediction / wildtype_prediction
+
 
     return kds_pairwise
 
