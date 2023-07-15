@@ -40,13 +40,6 @@ class MIMENetEnsemble(nn.Module):
 
         return x
     
-    def predict(self, x, n):
-        # forward pass n times with dropout disabled
-        predictions = []
-        for i in range(n):
-            # appen output as float
-            predictions.append(self.forward(x).item())
-        return predictions
     
         
 
@@ -92,6 +85,18 @@ class CustomTrainingSet(torch.utils.data.Dataset):
     def __len__(self):
         return self.len
 
+class inference_dataset(torch.utils.data.Dataset):
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        # convert from numpy to tensor
+        x = torch.tensor(self.data[index], dtype=torch.float32)
+
+        return x
 
 #training function
 def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_size_factor, bottleneck, kd_path = None, model_path = None, backup_interval = 10):
@@ -227,6 +232,44 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
 
     #return model and history
     return model, history
+
+def predict(model, x, n, batch_size):
+    """This function is used for inference with the model. It takes in a 2d tensor
+    and predicts the output using the model. For uncertainty quantification, the
+    model is run n times and the full distribution is returned.
+
+    Args:
+        x (tensor): Input tensor
+        n (int): Number of times to run the model
+    """
+    # set length of input
+    length = x.shape[0]
+
+    # set device
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(device)
+    
+    # define x as inference dataset
+    x = inference_dataset(x)
+
+    # define dataloader
+    dataloader = torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=False)
+
+    # set model
+    model = model.to(device)
+
+    # initialize output
+    output = np.zeros((length, n))
+    # run model n times
+    for i in tqdm(range(n)):
+        for j, data in enumerate(dataloader):
+            # only send data to device
+            data = data.to(device)
+
+            # add to output
+            output[j*batch_size:(j+1)*batch_size, i] = model(data).squeeze().cpu().detach().numpy()
+            
+    return output
 
 def inferSingleProbabilities(model, numberFeatures, n : int):
     """
@@ -472,6 +515,7 @@ def inferEpistasis(singleKds : list, pairwiseKds : list):
 
     pairwise_kd_pred = np.array(pairwiseKds)
 
+    num_tests = pairwise_kd_pred.shape[0]
     #iterate through all possible pairs
     epistasis_nuc = []
     pairs_nuc = []
@@ -493,9 +537,11 @@ def inferEpistasis(singleKds : list, pairwiseKds : list):
                     check = pairwise_kd < single_kd_1 * single_kd_2
                     count = np.sum(check)
 
+                    # define threshold as 0.95 with bonferroni correction
+                    threshold = 1 - (0.05 / num_tests)
 
-                    # predict epistasis if more than 95% of the predictions are lower
-                    if count / pairwise_kd.shape[0] > 0.95:
+                    # predict epistasis if more than threshold of the predictions are lower
+                    if count / pairwise_kd.shape[0] > threshold:
                         epistasis_nuc.append(1)
                     else:
                         epistasis_nuc.append(0)
