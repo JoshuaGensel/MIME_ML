@@ -44,11 +44,11 @@ class MIMENetEnsemble(nn.Module):
         
 
 #custom training set
-class CustomTrainingSet(torch.utils.data.Dataset):
+class custom_data_set(torch.utils.data.Dataset):
     #read data from text file
     #training examples and labels are separated by an underscore
     #training examples are not separated
-    def __init__(self, path):
+    def __init__(self, path, name = "training"):
         # set path
         self.path = path
         # get number of lines at path
@@ -62,7 +62,7 @@ class CustomTrainingSet(torch.utils.data.Dataset):
                 offset += len(line)
             f.seek(0)
         #print number of training examples        
-        print("Number of Training examples: " + str(self.len))
+        print(f"Number of {name} examples: " + str(self.len))
 
 
     def __getitem__(self, index):
@@ -94,12 +94,12 @@ class inference_dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         # convert from numpy to tensor
-        x = torch.tensor(self.data[index], dtype=torch.float32)
+        x = self.data[index]
 
         return x
 
 #training function
-def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_size_factor, bottleneck, kd_path = None, model_path = None, backup_interval = 10):
+def train(training_path, test_path, epochs, learning_rate, batch_size, lambda_l2, hidden_size_factor, bottleneck, kd_path = None, model_path = None, backup_interval = 10):
 
     #set device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -107,7 +107,10 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     print("Device: " + str(device))
 
     #custom train loader
-    train_loader = torch.utils.data.DataLoader(dataset=CustomTrainingSet(training_path), batch_size=batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(dataset=custom_data_set(training_path), batch_size=batch_size, shuffle=True)
+
+    #custom test loader
+    test_loader = torch.utils.data.DataLoader(dataset=custom_data_set(test_path, "testing"), batch_size=batch_size, shuffle=False)
 
     #get input size
     input_size = len(open(training_path).readline().split('_')[0])
@@ -127,6 +130,9 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
     #training history
     train_history = []
 
+    #test history
+    test_history = []
+
     #prediction history
     prediction_history = []
 
@@ -141,7 +147,9 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
         model.load_state_dict(torch.load(model_path+".pt"))
         print("Loaded model from " + str(model_path+".pt"))
         #load train_history.txt
-        train_history = np.loadtxt(model_path + "_train_history.txt").tolist()        
+        train_history = np.loadtxt(model_path + "_train_history.txt").tolist()
+        #load test_history.txt
+        test_history = np.loadtxt(model_path + "_test_history.txt").tolist()
         #load prediction history
         prediction_history = np.loadtxt(model_path + "_prediction_history.txt").tolist()
         #load correlation history
@@ -179,13 +187,29 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
             #append loss of batch to history
             train_history.append(loss.item())
 
+        #test loop
+        loss_epoch = 0
+        with torch.no_grad():
+            #set model to eval mode
+            model.eval()
+            for x, y in tqdm(test_loader, desc="Testing - Epoch " + str(epo+1) + "/" + str(epochs), leave=False):
+                #cast to device
+                x = x.to(device)
+                y = y.to(device)
+
+                #forward pass
+                output = model(x)
+                #calculate binary cross entropy loss
+                loss = F.binary_cross_entropy(output, y)
+                #add loss to epoch loss
+                loss_epoch += loss.item()
+            #set model to train mode
+            model.train()
+        #append loss of epoch to history
+        test_history.append(loss_epoch/len(test_loader))
+
         #prediction
-        prediction_array = np.array(inferSingleProbabilities(model, input_size, 100))
-        # rows are predictions for one position
-        # take mean of each row
-        predictions = np.mean(prediction_array, axis=1)
-        #append to prediction history as list
-        prediction_history.append(predictions.tolist())
+        prediction_history.append(inferSingleProbabilities(model, input_size, batch_size))
 
         #get kds
         if kd_path is not None:
@@ -202,20 +226,25 @@ def train(training_path, epochs, learning_rate, batch_size, lambda_l2, hidden_si
         if epo % backup_interval == 0:
             #save model
             torch.save(model.state_dict(), model_path + ".pt")
+            torch.save(optimizer.state_dict(), model_path + "_optimizer.pt")
+            #backup model at current epoch
+            torch.save(model.state_dict(), model_path + "_epoch_" + str(epo+1) + ".pt")
             #save history
             np.savetxt(model_path + "_train_history.txt", train_history)
+            np.savetxt(model_path + "_test_history.txt", test_history)
             np.savetxt(model_path + "_prediction_history.txt", prediction_history)
             if kd_path is not None:
                 np.savetxt(model_path + "_correlation_history_probs.txt", correlation_history_probs)
                 np.savetxt(model_path + "_correlation_history_kds.txt", correlation_history_kds)
             np.savetxt(model_path + "_epoch.txt", np.array([epo]).astype(int)+1)
-            torch.save(optimizer.state_dict(), model_path + "_optimizer.pt")
+            
 
 
 
     #define history dictionary
     history = {
         'training': train_history,
+        'test': test_history,
         'prediction': prediction_history
     }
 
@@ -239,6 +268,7 @@ def predict(model, x, n, batch_size):
     model is run n times and the full distribution is returned.
 
     Args:
+        model (MIMENet.model): Model returned by train function of MIMENet used for prediction
         x (tensor): Input tensor
         n (int): Number of times to run the model
     """
@@ -247,7 +277,7 @@ def predict(model, x, n, batch_size):
 
     # set device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(device)
+    print("Device: " + str(device))
     
     # define x as inference dataset
     x = inference_dataset(x)
@@ -271,12 +301,58 @@ def predict(model, x, n, batch_size):
             
     return output
 
-def inferSingleProbabilities(model, numberFeatures, n : int):
+def output(model, x, batch_size):
+    """This function is used for inference with the model. It takes in a 2d tensor
+    and predicts the output using the model. Instead of running the model multiple
+    times, it turns of the models dropout and returns the output of the model.
+
+    Args:
+        model (MIMENet.model): Model returned by train function of MIMENet used for prediction
+        x (tensor): Input tensor
+        batch_size (int): Batch size for inference
     """
-    Predicts binding probabilities for all possible mutations of a single position of the RNA sequence. For this, the model predicts
-    synthetic data where only one mutation is present at a time. Ther order of the predictions is the following: position 1 wildtype,
-    position 1 mutation 1, position 1 mutation 2, position 1 mutation 3, position 2 wildtype, position 2 mutation 1, etc.). The
-    predictions are returned as a list of binding probabilities.
+
+    # set length of input
+    length = x.shape[0]
+
+    # set device
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
+    # define x as inference dataset
+    x = inference_dataset(x)
+
+    # define dataloader
+    dataloader = torch.utils.data.DataLoader(x, batch_size=batch_size, shuffle=False)
+
+    # set model
+    model = model.to(device)
+
+    # set model to eval mode
+    model.eval()
+
+    # initialize output
+    output = np.zeros(length)
+    # run model
+    for j, data in enumerate(dataloader):
+        # only send data to device
+        data = data.to(device)
+
+        # add to output
+        output[j*batch_size:(j+1)*batch_size] = model(data).squeeze().cpu().detach().numpy()
+
+    # set model to train mode
+    model.train()
+            
+    return output
+
+def inferSingleProbabilities(model, numberFeatures, batch_size : int):
+    """
+    Predicts binding probabilities for all input feature for the model. For this, the model predicts
+    synthetic data where only one feature is present at a time. Ther order of the predictions is the
+    following: round 1 protein concenctration 1, round 1 protein concentration 2, round 2 protein 
+    concentration 1, etc., position 1 wildtype, position 1 mutation 1, position 1 mutation 2, 
+    position 1 mutation 3, position 2 wildtype, position 2 mutation 1, etc.). The predictions are 
+    returned as a list of probabilities.
 
     Args:
         model (MIMENet.model): Model returned by train function of MIMENet used for prediction
@@ -287,19 +363,19 @@ def inferSingleProbabilities(model, numberFeatures, n : int):
     Returns:
         list: a list of binding probabilities for each mutation along the RNA sequence
     """
-    predictions = []
-    prediction_example = np.zeros(numberFeatures)
+    
+    # initialize matrix of input features x input features
+    prediction_example = np.zeros((numberFeatures, numberFeatures))
+    # set diagonal to 1
+    np.fill_diagonal(prediction_example, 1)
+    # set device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    for i in tqdm(range(6, numberFeatures), leave=False): # TODO change to 0, numberFeatures
-        current_prediction_example = prediction_example.copy()
-        current_prediction_example[i] = 1
-        current_prediction_example = torch.from_numpy(current_prediction_example).float()
-        current_prediction_example = current_prediction_example.to(device)
-        with torch.no_grad():
-            prediction = model.predict(current_prediction_example, n)
-            predictions.append(prediction)
+    # model output of prediction example
+    with torch.no_grad():
+        prediction = output(model, torch.from_numpy(prediction_example).float().to(device), batch_size)
+    # return prediction as list
+    return prediction.tolist()    
 
-    return predictions
 
 def inferPairwiseProbabilities(model, numberFeatures, n : int):
     """
@@ -331,7 +407,7 @@ def inferPairwiseProbabilities(model, numberFeatures, n : int):
                         current_prediction_example = current_prediction_example.to(device)
                         #output binding probability and append list for given protein concentration combination
                         with torch.no_grad():
-                            prediction = model.predict(current_prediction_example, n)
+                            prediction = predict(current_prediction_example, n)
                             predictionsPairwise.append(prediction)
 
     return predictionsPairwise
@@ -385,6 +461,62 @@ def inferSingleKds(model, n_protein_concentrations, n_rounds, path_wildtype, n :
 
         # reshape to 3d so that 3 rows are grouped together as one position
         kds_position = kds_nucleotide.reshape((len(wildtype), 3, n))
+
+        # take max of 3 rows
+        kds_position = np.max(kds_position, axis=1)
+
+
+    return kds_nucleotide, kds_position
+
+def getSingleKds(model, n_protein_concentrations, n_rounds, path_wildtype, batch_size : int):
+
+    # read in wildtype
+    with open(path_wildtype, 'r') as f:
+        wildtype = f.read()
+
+    n_features = len(wildtype) * 4 + n_protein_concentrations * n_rounds
+    
+    # initialize prediction example (number of nucleotides by number of features)
+    prediction_example_mutation = np.zeros((len(wildtype)*3, n_features))
+    prediction_example_wildtype = np.zeros((len(wildtype), n_features))
+
+    for pos, feature in enumerate(range(n_protein_concentrations*n_rounds, n_features, 4)):
+
+        # get wildtype at position
+        wildtype_nucleotide = wildtype[pos]
+
+        order_nucleotides = ['A', 'C', 'G', 'T']
+
+        # get index of wildtype nucleotide
+        index_wildtype = order_nucleotides.index(wildtype_nucleotide)
+
+        # set wildtype nucleotide
+        prediction_example_wildtype[pos, feature + index_wildtype] = 1
+
+        # set mutant nucleotides
+        indices_mutants = [i for i in range(4) if i != index_wildtype]
+        prediction_example_mutation[pos*3, feature + indices_mutants[0]] = 1
+        prediction_example_mutation[pos*3+1, feature + indices_mutants[1]] = 1
+        prediction_example_mutation[pos*3+2, feature + indices_mutants[2]] = 1
+
+
+    # predict
+    with torch.no_grad():
+        wildtype_prediction = output(model, prediction_example_wildtype, batch_size)
+        mutation_prediction = output(model, prediction_example_mutation, batch_size)
+
+        # compute predictions to kds
+        wildtype_prediction = 1 / wildtype_prediction - 1
+        mutation_prediction = 1 / mutation_prediction - 1
+
+        # repeat every row in wildtype_prediction 3 times
+        wildtype_prediction = np.repeat(wildtype_prediction, 3, axis=0)
+
+        # correct kds
+        kds_nucleotide = mutation_prediction / wildtype_prediction
+
+        # reshape to 3d so that 3 rows are grouped together as one position
+        kds_position = kds_nucleotide.reshape((len(wildtype), 3))
 
         # take max of 3 rows
         kds_position = np.max(kds_position, axis=1)
@@ -572,7 +704,7 @@ def computeEpistasis(singleKds : list, pairwiseKds : list):
                     nucleotide_pairs.append((pos1+mut1, pos2+mut2))
             
             # compute average epistasis for each mutation per pos 1 and pos 2
-            epistasis_positions.append(np.mean(epistasis_nucleotides[-9:]))
+            epistasis_positions.append(np.max(epistasis_nucleotides[-9:]))
             position_pairs.append((pos1//3, pos2//3))
             
 
