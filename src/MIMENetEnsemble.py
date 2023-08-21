@@ -94,7 +94,7 @@ class inference_dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         # convert from numpy to tensor
-        x = self.data[index]
+        x = torch.tensor(self.data[index], dtype=torch.float32)
 
         return x
 
@@ -372,7 +372,7 @@ def inferSingleProbabilities(model, numberFeatures, batch_size : int):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # model output of prediction example
     with torch.no_grad():
-        prediction = output(model, torch.from_numpy(prediction_example).float().to(device), batch_size)
+        prediction = output(model, prediction_example, batch_size)
     # return prediction as list
     return prediction.tolist()    
 
@@ -573,7 +573,9 @@ def inferPairwiseKds(model, n_protein_concentrations, n_rounds, path_wildtype, n
     with torch.no_grad():
 
         wildtype_prediction = predict(model, prediction_example_wildtype, n, batch_size)
+        del prediction_example_wildtype
         mutation_prediction = predict(model, prediction_example_mutation, n, batch_size)
+        del prediction_example_mutation
 
         # compute predictions to kds
         wildtype_prediction = 1 / wildtype_prediction - 1
@@ -691,7 +693,9 @@ def computeEpistasis(singleKds : list, pairwiseKds : list):
 
     #iterate through all possible pairs
     epistasis_nucleotides = []
+    p_values_nucleotides = []
     epistasis_positions = []
+    p_values_positions = []
     nucleotide_pairs = []
     position_pairs = []
     j = 0
@@ -700,12 +704,16 @@ def computeEpistasis(singleKds : list, pairwiseKds : list):
             for mut1 in range(3):
                 for mut2 in range(3):
                     epistasis_nucleotides.append((single_kd_pred_means[pos1+mut1]*single_kd_pred_means[pos2+mut2])/pairwise_kd_pred_means[j])
+                    p_values_nucleotides.append(np.sum(single_kd_pred[pos1+mut1]*single_kd_pred[pos2+mut2] < pairwise_kd_pred[j])/single_kd_pred[pos1+mut1].shape[0])
                     j += 1
                     nucleotide_pairs.append((pos1+mut1, pos2+mut2))
-            
-            # compute average epistasis for each mutation per pos 1 and pos 2
-            epistasis_positions.append(np.max(epistasis_nucleotides[-9:]))
+
+
+            # get max epistasis for each mutation per pos 1 and pos 2
+            max_epistasis = np.argmax(epistasis_nucleotides[-9:])
+            epistasis_positions.append(epistasis_nucleotides[-9+max_epistasis])
+            p_values_positions.append(p_values_nucleotides[-9+max_epistasis])
             position_pairs.append((pos1//3, pos2//3))
             
 
-    return epistasis_nucleotides, nucleotide_pairs, epistasis_positions, position_pairs
+    return epistasis_positions, p_values_positions, position_pairs
